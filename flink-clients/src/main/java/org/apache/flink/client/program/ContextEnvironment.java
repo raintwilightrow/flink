@@ -120,6 +120,7 @@ public class ContextEnvironment extends ExecutionEnvironment {
 	// --------------------------------------------------------------------------------------------
 
 	public static void setAsContext(ContextEnvironmentFactory factory) {
+		// TODO_WU 创建应用程序需要的ExecutionEnvironment
 		initializeContextEnvironment(factory);
 	}
 

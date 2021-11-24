@@ -127,6 +127,7 @@ public class CliFrontend {
 		this.customCommandLines = checkNotNull(customCommandLines);
 		this.clusterClientServiceLoader = checkNotNull(clusterClientServiceLoader);
 
+		// TODO_WU 加载插件管理器 DefaultPluginManager
 		FileSystem.initialize(configuration, PluginUtils.createPluginManagerFromRootFolder(configuration));
 
 		this.customCommandLineOptions = new Options();
@@ -174,8 +175,10 @@ public class CliFrontend {
 		LOG.info("Running 'run' command.");
 
 		final Options commandOptions = CliFrontendParser.getRunCommandOptions();
+		// TODO_WU 解析好的对应的参数
 		final CommandLine commandLine = getCommandLine(commandOptions, args, true);
 
+		// TODO_WU 判断是否为帮助命令
 		// evaluate help flag
 		if (commandLine.hasOption(HELP_OPTION.getOpt())) {
 			CliFrontendParser.printHelpForRun(customCommandLines);
@@ -194,6 +197,7 @@ public class CliFrontend {
 			}
 		}
 
+		// TODO_WU 构建 PackagedProgram
 		final PackagedProgram program;
 		try {
 			LOG.info("Building program from JAR file");
@@ -203,6 +207,7 @@ public class CliFrontend {
 			throw new CliArgsException("Could not build the program from JAR file.", e);
 		}
 
+		// TODO_WU 依赖jar处理
 		final List<URL> jobJars = program.getJobJarAndDependencies();
 		final Configuration effectiveConfiguration = getEffectiveConfiguration(
 				activeCommandLine, commandLine, programOptions, jobJars);
@@ -680,9 +685,11 @@ public class CliFrontend {
 		String jarFilePath = runOptions.getJarFilePath();
 		List<URL> classpaths = runOptions.getClasspaths();
 
+		// TODO_WU 一般在使用 flink run 的时候会指定运行主类，否则不指定的话，就从 mainfest 中解析得到
 		// Get assembler class
 		String entryPointClass = runOptions.getEntryPointClassName();
 		File jarFile = null;
+		// TODO_WU 与run中判断是否为py略重复，1.11修改
 		if (runOptions.isPython()) {
 			// If the job is specified a jar file
 			if (jarFilePath != null) {
@@ -704,6 +711,7 @@ public class CliFrontend {
 		return PackagedProgram.newBuilder()
 			.setJarFile(jarFile)
 			.setUserClassPaths(classpaths)
+			// TODO_WU 设置主类
 			.setEntryPointClassName(entryPointClass)
 			.setConfiguration(configuration)
 			.setSavepointRestoreSettings(runOptions.getSavepointRestoreSettings())
@@ -891,6 +899,7 @@ public class CliFrontend {
 		// get action
 		String action = args[0];
 
+		// TODO_WU 从所有参数中，移除 action 参数
 		// remove action from parameters
 		final String[] params = Arrays.copyOfRange(args, 1, args.length);
 
@@ -951,26 +960,33 @@ public class CliFrontend {
 	 * Submits the job based on the arguments.
 	 */
 	public static void main(final String[] args) {
+		// TODO_WU 打印输出一些环境信息
 		EnvironmentInformation.logEnvironmentInfo(LOG, "Command Line Client", args);
 
+		// TODO_WU 通过 FLINK_CONF_DIR 变量找到 conf 目录
 		// 1. find the configuration directory
 		final String configurationDirectory = getConfigurationDirectoryFromEnv();
 
+		// TODO_WU 解析 conf 目录下的 flink-conf.yaml 配置文件 加载全局配置
 		// 2. load the global configuration
 		final Configuration configuration = GlobalConfiguration.loadConfiguration(configurationDirectory);
 
+		// TODO_WU 加载：FlinkYarnSessionCli 和 DefaultCLI，自定义参数
 		// 3. load the custom command lines
 		final List<CustomCommandLine> customCommandLines = loadCustomCommandLines(
 			configuration,
 			configurationDirectory);
 
 		try {
+			// TODO_WU 初始化 CliFrontend
 			final CliFrontend cli = new CliFrontend(
 				configuration,
 				customCommandLines);
 
+			// TODO_WU 进行Kerberos认证
 			SecurityUtils.install(new SecurityConfiguration(cli.configuration));
 			int retCode = SecurityUtils.getInstalledContext()
+				// TODO_WU 解析命令行并并开始请求操作
 					.runSecured(() -> cli.parseParameters(args));
 			System.exit(retCode);
 		}

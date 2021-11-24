@@ -203,6 +203,7 @@ public class StreamGraphGenerator {
 
 		alreadyTransformed = new HashMap<>();
 
+		// TODO_WU 自底向上(先遍历 input transformations)对转换树的每个 transformation 进行转换
 		for (Transformation<?> transformation: transformations) {
 			transform(transformation);
 		}
@@ -223,7 +224,10 @@ public class StreamGraphGenerator {
 	 * delegates to one of the transformation specific methods.
 	 */
 	private Collection<Integer> transform(Transformation<?> transform) {
+		// TODO_WU 对具体的一个 transformation 进行转换，转换成 StreamGraph 中的 StreamNode 和 StreamEdge
+		// TODO_WU 回值为该 transform 的 id 集合，通常大小为 1 个（除 FeedbackTransformation）
 
+		// TODO_WU 已经 Transform 的 Transformation 会放在这个集合中
 		if (alreadyTransformed.containsKey(transform)) {
 			return alreadyTransformed.get(transform);
 		}
@@ -232,6 +236,7 @@ public class StreamGraphGenerator {
 
 		if (transform.getMaxParallelism() <= 0) {
 
+			// TODO_WU 如果 MaxParallelism 没有设置，使用 job 的 MaxParallelism 设置
 			// if the max parallelism hasn't been set, then first use the job wide max parallelism
 			// from the ExecutionConfig.
 			int globalMaxParallelismFromConfig = executionConfig.getMaxParallelism();
@@ -240,6 +245,7 @@ public class StreamGraphGenerator {
 			}
 		}
 
+		// TODO_WU 如果是 MissingTypeInfo 类型（类型不确定），将会触发异常
 		// call at least once to trigger exceptions about MissingTypeInfo
 		transform.getOutputType();
 

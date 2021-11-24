@@ -142,6 +142,7 @@ public class PackagedProgram {
 			getClass().getClassLoader(),
 			configuration);
 
+		// TODO_WU 加载得到 main Class
 		// load the entry point class
 		this.mainClass = loadMainClass(
 			// if no entryPointClassName name was given, we try and look one up through the manifest
@@ -302,6 +303,7 @@ public class PackagedProgram {
 		}
 
 		try {
+			// TODO_WU 得到 运行主类的 main 方法实例
 			mainMethod = entryClass.getMethod("main", String[].class);
 		} catch (NoSuchMethodException e) {
 			throw new ProgramInvocationException("The class " + entryClass.getName() + " has no main(String[]) method.");
@@ -318,6 +320,7 @@ public class PackagedProgram {
 		}
 
 		try {
+			// TODO_WU 调用运行主类的 main 方法, 跳转到运行主类的 main 方法
 			mainMethod.invoke(null, (Object) args);
 		} catch (IllegalArgumentException e) {
 			throw new ProgramInvocationException("Could not invoke the main method, arguments are not matching.", e);
@@ -346,6 +349,7 @@ public class PackagedProgram {
 
 		// Open jar file
 		try {
+			// TODO_WU 获取 jar 文件
 			jar = new JarFile(new File(jarFile.toURI()));
 		} catch (URISyntaxException use) {
 			throw new ProgramInvocationException("Invalid file path '" + jarFile.getPath() + "'", use);
@@ -358,6 +362,7 @@ public class PackagedProgram {
 		try {
 			// Read from jar manifest
 			try {
+				// TODO_WU 解析得到 mainfest
 				manifest = jar.getManifest();
 			} catch (IOException ioex) {
 				throw new ProgramInvocationException("The Manifest in the jar file could not be accessed '"
@@ -368,6 +373,7 @@ public class PackagedProgram {
 				throw new ProgramInvocationException("No manifest found in jar file '" + jarFile.getPath() + "'. The manifest is need to point to the program's main class.");
 			}
 
+			// TODO_WU 从 maifest 中进行解析得到jar的运行主类
 			Attributes attributes = manifest.getMainAttributes();
 
 			// check for a "program-class" entry first
@@ -587,6 +593,7 @@ public class PackagedProgram {
 			if (jarFile == null && entryPointClassName == null) {
 				throw new IllegalArgumentException("The jarFile and entryPointClassName can not be null at the same time.");
 			}
+			// TODO_WU PackagedProgram build
 			return new PackagedProgram(
 				jarFile,
 				userClassPaths,

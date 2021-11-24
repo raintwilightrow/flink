@@ -1621,7 +1621,7 @@ public class StreamExecutionEnvironment {
 	 */
 	public JobExecutionResult execute(String jobName) throws Exception {
 		Preconditions.checkNotNull(jobName, "Streaming Job name should not be null.");
-
+		// TODO_WU 首先 getStreamGraph(jobName) 获取 Graph ; 然后 execute(Graph) 执行Graph
 		return execute(getStreamGraph(jobName));
 	}
 
@@ -1790,6 +1790,7 @@ public class StreamExecutionEnvironment {
 	 */
 	@Internal
 	public StreamGraph getStreamGraph(String jobName, boolean clearTransformations) {
+		// TODO_WU 调用 generate 生成 StreamGragh
 		StreamGraph streamGraph = getStreamGraphGenerator().setJobName(jobName).generate();
 		if (clearTransformations) {
 			this.transformations.clear();
@@ -1801,6 +1802,7 @@ public class StreamExecutionEnvironment {
 		if (transformations.size() <= 0) {
 			throw new IllegalStateException("No operators defined in streaming topology. Cannot execute.");
 		}
+		// TODO_WU 数据处理操作都在这个 transformations 列表里
 		return new StreamGraphGenerator(transformations, config, checkpointCfg)
 			.setStateBackend(defaultStateBackend)
 			.setChaining(isChainingEnabled)
@@ -1864,8 +1866,10 @@ public class StreamExecutionEnvironment {
 	 * executed.
 	 */
 	public static StreamExecutionEnvironment getExecutionEnvironment() {
+		// 1.11已经拆解createStreamExecutionEnvironment，不需要依赖"flink-clients"
 		return Utils.resolveFactory(threadLocalContextEnvironmentFactory, contextEnvironmentFactory)
 			.map(StreamExecutionEnvironmentFactory::createExecutionEnvironment)
+			// TODO_WU 不为空则createStreamExecutionEnvironment(),为空则createLocalEnvironment()
 			.orElseGet(StreamExecutionEnvironment::createStreamExecutionEnvironment);
 	}
 
@@ -1876,10 +1880,13 @@ public class StreamExecutionEnvironment {
 
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		if (env instanceof ContextEnvironment) {
+			// 集群中ContextEnvironment
 			return new StreamContextEnvironment((ContextEnvironment) env);
 		} else if (env instanceof OptimizerPlanEnvironment) {
+			// 不会具体执行 例如执行bin/flink info命令获取任务的执行信息
 			return new StreamPlanEnvironment(env);
 		} else {
+			// TODO_WU 本地JVM中启动MiniCluster，即包括JobManager、TaskManager等主要组件的伪分布式运行环境
 			return createLocalEnvironment();
 		}
 	}
