@@ -142,6 +142,7 @@ public class RestClient implements AutoCloseableAsync {
 		};
 		NioEventLoopGroup group = new NioEventLoopGroup(1, new ExecutorThreadFactory("flink-rest-client-netty"));
 
+		// TODO_WU 初始化一个 Netty 客户端程序，用来执行 应用程序的 提交
 		bootstrap = new Bootstrap();
 		bootstrap
 			.option(ChannelOption.CONNECT_TIMEOUT_MILLIS, Math.toIntExact(configuration.getConnectionTimeout()))
@@ -255,6 +256,7 @@ public class RestClient implements AutoCloseableAsync {
 		objectMapper.writeValue(sw, request);
 		ByteBuf payload = Unpooled.wrappedBuffer(sw.toString().getBytes(ConfigConstants.DEFAULT_CHARSET));
 
+		// TODO_WU 创建对象
 		Request httpRequest = createRequest(targetAddress + ':' + targetPort, targetUrl, messageHeaders.getHttpMethod().getNettyHttpMethod(), payload, fileUploads);
 
 		final JavaType responseType;
@@ -330,6 +332,9 @@ public class RestClient implements AutoCloseableAsync {
 	}
 
 	private <P extends ResponseBody> CompletableFuture<P> submitRequest(String targetAddress, int targetPort, Request httpRequest, JavaType responseType) {
+		/**
+		 * TODO_WU 通过初始化RestClient时创建的Netty客户端{@link bootstrap}发送请求
+		 */
 		final ChannelFuture connectFuture = bootstrap.connect(targetAddress, targetPort);
 
 		final CompletableFuture<Channel> channelFuture = new CompletableFuture<>();
@@ -355,6 +360,7 @@ public class RestClient implements AutoCloseableAsync {
 						if (handler == null) {
 							throw new IOException("Netty pipeline was not properly initialized.");
 						} else {
+							// TODO_WU 发送请求 到 JobManager 的 Netty 服务端
 							httpRequest.writeTo(channel);
 							future = handler.getJsonFuture();
 							success = true;
@@ -371,6 +377,7 @@ public class RestClient implements AutoCloseableAsync {
 				},
 				executor)
 			.thenComposeAsync(
+				// TODO_WU 解析响应：parseResponse
 				(JsonResponse rawResponse) -> parseResponse(rawResponse, responseType),
 				executor);
 	}
@@ -402,6 +409,7 @@ public class RestClient implements AutoCloseableAsync {
 		return responseFuture;
 	}
 
+	// TODO_WU 分为SimpleRequest 和 MultipartRequest 两类实现
 	private interface Request {
 		void writeTo(Channel channel) throws IOException;
 	}

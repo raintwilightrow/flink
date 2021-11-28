@@ -54,6 +54,7 @@ public class AbstractSessionClusterExecutor<ClusterID, ClientFactory extends Clu
 
 	@Override
 	public CompletableFuture<JobClient> execute(@Nonnull final Pipeline pipeline, @Nonnull final Configuration configuration) throws Exception {
+		// TODO_WU streamgraph -> jobGraph
 		final JobGraph jobGraph = ExecutorUtils.getJobGraph(pipeline, configuration);
 
 		try (final ClusterDescriptor<ClusterID> clusterDescriptor = clusterClientFactory.createClusterDescriptor(configuration)) {
@@ -62,6 +63,9 @@ public class AbstractSessionClusterExecutor<ClusterID, ClientFactory extends Clu
 
 			final ClusterClientProvider<ClusterID> clusterClientProvider = clusterDescriptor.retrieve(clusterID);
 			ClusterClient<ClusterID> clusterClient = clusterClientProvider.getClusterClient();
+
+			// TODO_WU 本地 MiniClusterClient
+			// TODO_WU 集群 RestClusterClient 提交到 Flink Rest 服务接收处理
 			return clusterClient
 					.submitJob(jobGraph)
 					.thenApplyAsync(jobID -> (JobClient) new ClusterClientJobClientAdapter<>(

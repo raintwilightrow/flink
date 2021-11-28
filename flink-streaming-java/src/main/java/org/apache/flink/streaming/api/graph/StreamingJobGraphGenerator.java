@@ -159,6 +159,7 @@ public class StreamingJobGraphGenerator {
 		// submission iff they didn't change.
 		Map<Integer, byte[]> hashes = defaultStreamGraphHasher.traverseStreamGraphAndGenerateHashes(streamGraph);
 
+		// TODO_WU 1.11合并为OperatorChainInfo
 		// Generate legacy version hashes for backwards compatibility
 		List<Map<Integer, byte[]>> legacyHashes = new ArrayList<>(legacyStreamGraphHashers.size());
 		for (StreamGraphHasher hasher : legacyStreamGraphHashers) {
@@ -167,6 +168,7 @@ public class StreamingJobGraphGenerator {
 
 		Map<Integer, List<Tuple2<byte[], byte[]>>> chainedOperatorHashes = new HashMap<>();
 
+		// TODO_WU 从源节点开始递归创建JobVertex中的Task Chain
 		setChaining(hashes, legacyHashes, chainedOperatorHashes);
 
 		setPhysicalEdges();
@@ -184,6 +186,7 @@ public class StreamingJobGraphGenerator {
 
 		jobGraph.setSavepointRestoreSettings(streamGraph.getSavepointRestoreSettings());
 
+		// TODO_WU 配置用户的自定义文件
 		JobGraphGenerator.addUserArtifactEntries(streamGraph.getUserArtifacts(), jobGraph);
 
 		// set the ExecutionConfig last when it has been finalized
@@ -203,6 +206,7 @@ public class StreamingJobGraphGenerator {
 		CheckpointConfig checkpointConfig = streamGraph.getCheckpointConfig();
 
 		if (checkpointConfig.isCheckpointingEnabled()) {
+			// TODO_WU 当前迭代任务不支持cp
 			// temporarily forbid checkpointing for iterative jobs
 			if (streamGraph.isIterative() && !checkpointConfig.isForceCheckpointing()) {
 				throw new UnsupportedOperationException(
@@ -213,6 +217,7 @@ public class StreamingJobGraphGenerator {
 
 			ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
 			for (StreamNode node : streamGraph.getStreamNodes()) {
+				// TODO_WU 每个节点的operator是否实现InputSelectable
 				StreamOperatorFactory operatorFactory = node.getOperatorFactory();
 				if (operatorFactory != null) {
 					Class<?> operatorClass = operatorFactory.getStreamOperatorClass(classLoader);
@@ -252,6 +257,14 @@ public class StreamingJobGraphGenerator {
 	 * <p>This will recursively create all {@link JobVertex} instances.
 	 */
 	private void setChaining(Map<Integer, byte[]> hashes, List<Map<Integer, byte[]>> legacyHashes, Map<Integer, List<Tuple2<byte[], byte[]>>> chainedOperatorHashes) {
+		/**
+		 * TODO_WU 依次遍历节点
+		 * 如果该节点是一个chain的头结点，就生成一个jobvertex 否则，就把自身配置并入头结点，然后把头结点和自己的出边相连
+		 *
+		 * 作用：
+		 * 减少线程之间的切换，减少消息的序列化/反序列化，减少数据在缓冲区的交换，减少延迟的同时提高整体的吞吐量
+		 */
+
 		for (Integer sourceNodeId : streamGraph.getSourceIDs()) {
 			createChain(sourceNodeId, sourceNodeId, hashes, legacyHashes, 0, chainedOperatorHashes);
 		}
@@ -269,12 +282,14 @@ public class StreamingJobGraphGenerator {
 
 			List<StreamEdge> transitiveOutEdges = new ArrayList<StreamEdge>();
 
+			// TODO_WU 存储可以/不可以被优化的streamedge
 			List<StreamEdge> chainableOutputs = new ArrayList<StreamEdge>();
 			List<StreamEdge> nonChainableOutputs = new ArrayList<StreamEdge>();
 
 			StreamNode currentNode = streamGraph.getStreamNode(currentNodeId);
 
 			for (StreamEdge outEdge : currentNode.getOutEdges()) {
+				// TODO_WU 判断这个streamedge是否可做优化
 				if (isChainable(outEdge, streamGraph)) {
 					chainableOutputs.add(outEdge);
 				} else {
@@ -283,11 +298,13 @@ public class StreamingJobGraphGenerator {
 			}
 
 			for (StreamEdge chainable : chainableOutputs) {
+				// TODO_WU 如果可被优化则向下递归
 				transitiveOutEdges.addAll(
 						createChain(startNodeId, chainable.getTargetId(), hashes, legacyHashes, chainIndex + 1, chainedOperatorHashes));
 			}
 
 			for (StreamEdge nonChainable : nonChainableOutputs) {
+				// TODO_WU 不可优化则记录当前的edge，并以目标为节点为起始点重新开始
 				transitiveOutEdges.add(nonChainable);
 				createChain(nonChainable.getTargetId(), nonChainable.getTargetId(), hashes, legacyHashes, 0, chainedOperatorHashes);
 			}
@@ -306,6 +323,7 @@ public class StreamingJobGraphGenerator {
 			chainedMinResources.put(currentNodeId, createChainedMinResources(currentNodeId, chainableOutputs));
 			chainedPreferredResources.put(currentNodeId, createChainedPreferredResources(currentNodeId, chainableOutputs));
 
+			// TODO_WU node为source
 			if (currentNode.getInputFormat() != null) {
 				getOrCreateFormatContainer(startNodeId).addInputFormat(currentOperatorId, currentNode.getInputFormat());
 			}
@@ -314,6 +332,7 @@ public class StreamingJobGraphGenerator {
 				getOrCreateFormatContainer(startNodeId).addOutputFormat(currentOperatorId, currentNode.getOutputFormat());
 			}
 
+			// TODO_WU currentNodeId=startNodeId说明为一个chain的起点，需要创建vertex
 			StreamConfig config = currentNodeId.equals(startNodeId)
 					? createJobVertex(startNodeId, hashes, legacyHashes, chainedOperatorHashes)
 					: new StreamConfig(new Configuration());
@@ -322,11 +341,13 @@ public class StreamingJobGraphGenerator {
 
 			if (currentNodeId.equals(startNodeId)) {
 
+				// TODO_WU 设置为起始
 				config.setChainStart();
 				config.setChainIndex(0);
 				config.setOperatorName(streamGraph.getStreamNode(currentNodeId).getOperatorName());
 
 				for (StreamEdge edge : transitiveOutEdges) {
+					// TODO_WU 上游算子连接下个edge
 					connect(startNodeId, edge);
 				}
 
@@ -334,6 +355,7 @@ public class StreamingJobGraphGenerator {
 				config.setTransitiveChainedTaskConfigs(chainedConfigs.get(startNodeId));
 
 			} else {
+				// TODO_WU currentNodeId是chain的一部分
 				chainedConfigs.computeIfAbsent(startNodeId, k -> new HashMap<Integer, StreamConfig>());
 
 				config.setChainIndex(chainIndex);
@@ -445,6 +467,8 @@ public class StreamingJobGraphGenerator {
 					chainedOperatorVertexIds,
 					userDefinedChainedOperatorVertexIds);
 		}
+
+		// TODO_WU 1.11在此处设置OperatorCoordinator
 
 		jobVertex.setResources(chainedMinResources.get(streamNodeId), chainedPreferredResources.get(streamNodeId));
 
@@ -615,16 +639,26 @@ public class StreamingJobGraphGenerator {
 		StreamOperatorFactory<?> headOperator = upStreamVertex.getOperatorFactory();
 		StreamOperatorFactory<?> outOperator = downStreamVertex.getOperatorFactory();
 
-		return downStreamVertex.getInEdges().size() == 1
+		return
+			// TODO_WU 下游节点只有一个入边
+			downStreamVertex.getInEdges().size() == 1
+				// TODO_WU 上下游均不为空
 				&& outOperator != null
 				&& headOperator != null
+				// TODO_WU 在同一个slot group中
 				&& upStreamVertex.isSameSlotSharingGroup(downStreamVertex)
+				// TODO_WU 下游策略为always
 				&& outOperator.getChainingStrategy() == ChainingStrategy.ALWAYS
+				// TODO_WU 上游节点不为never
 				&& (headOperator.getChainingStrategy() == ChainingStrategy.HEAD ||
 					headOperator.getChainingStrategy() == ChainingStrategy.ALWAYS)
+				// TODO_WU 物理分区逻辑为ForwardPartitioner
 				&& (edge.getPartitioner() instanceof ForwardPartitioner)
+				// TODO_WU 不是批处理
 				&& edge.getShuffleMode() != ShuffleMode.BATCH
+				// TODO_WU 上下游并行度一致
 				&& upStreamVertex.getParallelism() == downStreamVertex.getParallelism()
+				// TODO_WU 用户没有禁用
 				&& streamGraph.isChainingEnabled();
 	}
 

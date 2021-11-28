@@ -223,10 +223,9 @@ public class StreamGraphGenerator {
 	 * <p>This checks whether we already transformed it and exits early in that case. If not it
 	 * delegates to one of the transformation specific methods.
 	 */
+	// TODO_WU 对具体的一个 transformation 进行转换，转换成 StreamGraph 中的 StreamNode 和 StreamEdge
+	// TODO_WU 回值为该 transform 的 id 集合，通常大小为 1 个（除 FeedbackTransformation）
 	private Collection<Integer> transform(Transformation<?> transform) {
-		// TODO_WU 对具体的一个 transformation 进行转换，转换成 StreamGraph 中的 StreamNode 和 StreamEdge
-		// TODO_WU 回值为该 transform 的 id 集合，通常大小为 1 个（除 FeedbackTransformation）
-
 		// TODO_WU 已经 Transform 的 Transformation 会放在这个集合中
 		if (alreadyTransformed.containsKey(transform)) {
 			return alreadyTransformed.get(transform);
@@ -269,6 +268,7 @@ public class StreamGraphGenerator {
 		} else if (transform instanceof CoFeedbackTransformation<?>) {
 			transformedIds = transformCoFeedback((CoFeedbackTransformation<?>) transform);
 		} else if (transform instanceof PartitionTransformation<?>) {
+			// TODO_WU shuffle类型不进行计算操作的算子
 			transformedIds = transformPartition((PartitionTransformation<?>) transform);
 		} else if (transform instanceof SideOutputTransformation<?>) {
 			transformedIds = transformSideOutput((SideOutputTransformation<?>) transform);
@@ -282,6 +282,7 @@ public class StreamGraphGenerator {
 			alreadyTransformed.put(transform, transformedIds);
 		}
 
+		// TODO_WU 这个 Transform 相关的信息记录到 StreamGraph 中
 		if (transform.getBufferTimeout() >= 0) {
 			streamGraph.setBufferTimeout(transform.getId(), transform.getBufferTimeout());
 		} else {
@@ -308,6 +309,7 @@ public class StreamGraphGenerator {
 			streamGraph.setResources(transform.getId(), transform.getMinResources(), transform.getPreferredResources());
 		}
 
+		// TODO_WU 设定ManagedMemoryWeight参数
 		streamGraph.setManagedMemoryWeight(transform.getId(), transform.getManagedMemoryWeight());
 
 		return transformedIds;
@@ -343,6 +345,7 @@ public class StreamGraphGenerator {
 		Collection<Integer> transformedIds = transform(input);
 		for (Integer transformedId: transformedIds) {
 			int virtualId = Transformation.getNewNodeId();
+			// TODO_WU 在streamGraph中添加虚拟节点，此处不会产生物理操作，仅表示数据流转方向
 			streamGraph.addVirtualPartitionNode(
 					transformedId, virtualId, partition.getPartitioner(), partition.getShuffleMode());
 			resultIds.add(virtualId);
@@ -430,7 +433,7 @@ public class StreamGraphGenerator {
 
 	/**
 	 * Transforms a {@code FeedbackTransformation}.
-	 *
+	 * // TODO_WU 处理反馈环
 	 * <p>This will recursively transform the input and the feedback edges. We return the
 	 * concatenation of the input IDs and the feedback IDs so that downstream operations can be
 	 * wired to both.
@@ -440,6 +443,7 @@ public class StreamGraphGenerator {
 	 */
 	private <T> Collection<Integer> transformFeedback(FeedbackTransformation<T> iterate) {
 
+		// TODO_WU 检查迭代的反馈边，如果没有反馈边，则无法形成迭代的“环”，这时就抛出异常
 		if (iterate.getFeedbackEdges().size() <= 0) {
 			throw new IllegalStateException("Iteration " + iterate + " does not have any feedback edges.");
 		}
@@ -447,6 +451,7 @@ public class StreamGraphGenerator {
 		Transformation<T> input = iterate.getInput();
 		List<Integer> resultIds = new ArrayList<>();
 
+		// TODO_WU 对上游输入进行（递归）转换以获得转换编号集合
 		// first transform the input stream(s) and store the result IDs
 		Collection<Integer> inputIds = transform(input);
 		resultIds.addAll(inputIds);
@@ -456,6 +461,7 @@ public class StreamGraphGenerator {
 			return alreadyTransformed.get(iterate);
 		}
 
+		// TODO_WU 将迭代这一在执行图中的环看作一个闭合的整体，认为它也有source和sink，为其创建source和sink的二元组
 		// create the fake iteration source/sink pair
 		Tuple2<StreamNode, StreamNode> itSourceAndSink = streamGraph.createIterationSourceAndSink(
 			iterate.getId(),
@@ -470,25 +476,31 @@ public class StreamGraphGenerator {
 		StreamNode itSource = itSourceAndSink.f0;
 		StreamNode itSink = itSourceAndSink.f1;
 
+		// TODO_WU 在StreamGraph中为这两个顶点设置序列化器
 		// We set the proper serializers for the sink/source
 		streamGraph.setSerializers(itSource.getId(), null, null, iterate.getOutputType().createSerializer(executionConfig));
 		streamGraph.setSerializers(itSink.getId(), iterate.getOutputType().createSerializer(executionConfig), null, null);
 
+		// TODO_WU 将迭代的source顶点的编号也作为结果集合的一部分，这是为了让下游的算子将其视为输入
 		// also add the feedback source ID to the result IDs, so that downstream operators will
 		// add both as input
 		resultIds.add(itSource.getId());
 
+		// TODO_WU 将反馈转换对象以及其对应的结果集合的映射关系加入已遍历的Map中，这样在进行反馈边转换时，当它们向上递归转换时遇到当前的反馈转换对象将停止递归转换
 		// at the iterate to the already-seen-set with the result IDs, so that we can transform
 		// the feedback edges and let them stop when encountering the iterate node
 		alreadyTransformed.put(iterate, resultIds);
 
+		// TODO_WU 遍历迭代的所有反馈边，并将所有反馈边对应的转换对象编号加入allFeedbackIds中
 		// so that we can determine the slot sharing group from all feedback edges
 		List<Integer> allFeedbackIds = new ArrayList<>();
 
 		for (Transformation<T> feedbackEdge : iterate.getFeedbackEdges()) {
+			// TODO_WU 对反馈边转换对象执行递归转换
 			Collection<Integer> feedbackIds = transform(feedbackEdge);
 			allFeedbackIds.addAll(feedbackIds);
 			for (Integer feedbackId: feedbackIds) {
+				// TODO_WU 遍历所有的反馈转换对象的编号，并在StreamGraph中构建从反馈转换对象到迭代sink之间的边
 				streamGraph.addEdge(feedbackId,
 						itSink.getId(),
 						0
@@ -640,11 +652,13 @@ public class StreamGraphGenerator {
 	/**
 	 * Transforms a {@code OneInputTransformation}.
 	 *
+	 * // TODO_WU 这将递归地转换输入，在图中创建一个新的 {@code StreamNode}，并将输入连接到该新节点。
 	 * <p>This recursively transforms the inputs, creates a new {@code StreamNode} in the graph and
 	 * wired the inputs to this new node.
 	 */
 	private <IN, OUT> Collection<Integer> transformOneInputTransform(OneInputTransformation<IN, OUT> transform) {
 
+		// TODO_WU 递归调用
 		Collection<Integer> inputIds = transform(transform.getInput());
 
 		// the recursive call might have already transformed this
@@ -652,8 +666,10 @@ public class StreamGraphGenerator {
 			return alreadyTransformed.get(transform);
 		}
 
+		// TODO_WU 确定资源共享组，如果没有指定，则默认的是 default
 		String slotSharingGroup = determineSlotSharingGroup(transform.getSlotSharingGroup(), inputIds);
 
+		// TODO_WU 添加一个 Operator（streamGraph 端会添加一个 StreamNode）
 		streamGraph.addOperator(transform.getId(),
 				slotSharingGroup,
 				transform.getCoLocationGroupKey(),
@@ -662,20 +678,24 @@ public class StreamGraphGenerator {
 				transform.getOutputType(),
 				transform.getName());
 
+		// TODO_WU 设置KeySelector
 		if (transform.getStateKeySelector() != null) {
 			TypeSerializer<?> keySerializer = transform.getStateKeyType().createSerializer(executionConfig);
 			streamGraph.setOneInputStateKey(transform.getId(), transform.getStateKeySelector(), keySerializer);
 		}
 
+		// TODO_WU 设置并行度
 		int parallelism = transform.getParallelism() != ExecutionConfig.PARALLELISM_DEFAULT ?
 			transform.getParallelism() : executionConfig.getParallelism();
 		streamGraph.setParallelism(transform.getId(), parallelism);
 		streamGraph.setMaxParallelism(transform.getId(), transform.getMaxParallelism());
 
 		for (Integer inputId: inputIds) {
+			// TODO_WU 根据输入的 id，给这个 node 在 graph 中设置相应的 graph
 			streamGraph.addEdge(inputId, transform.getId(), 0);
 		}
 
+		// TODO_WU 返回当前的transformid
 		return Collections.singleton(transform.getId());
 	}
 

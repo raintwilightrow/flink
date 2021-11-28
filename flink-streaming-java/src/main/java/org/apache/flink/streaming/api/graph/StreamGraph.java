@@ -693,6 +693,7 @@ public class StreamGraph implements Pipeline {
 
 		final String coLocationGroup = "IterationCoLocationGroup-" + loopId;
 
+		// TODO_WU 创建一个source节点实例
 		StreamNode source = this.addNode(sourceId,
 			null,
 			coLocationGroup,
@@ -704,6 +705,7 @@ public class StreamGraph implements Pipeline {
 		setMaxParallelism(source.getId(), maxParallelism);
 		setResources(source.getId(), minResources, preferredResources);
 
+		// TODO_WU 创建一个sink节点实例，它对应的执行时的任务类是StreamIterationTail
 		StreamNode sink = this.addNode(sinkId,
 			null,
 			coLocationGroup,
@@ -726,6 +728,7 @@ public class StreamGraph implements Pipeline {
 
 		iterationSourceSinkPairs.add(new Tuple2<>(source, sink));
 
+		// TODO_WU 建立节点编号与代理的关系
 		this.vertexIDtoBrokerID.put(source.getId(), "broker-" + loopId);
 		this.vertexIDtoBrokerID.put(sink.getId(), "broker-" + loopId);
 		this.vertexIDtoLoopTimeout.put(source.getId(), timeout);

@@ -289,6 +289,7 @@ public class RestClusterClient<T> implements ClusterClient<T> {
 	public CompletableFuture<JobID> submitJob(@Nonnull JobGraph jobGraph) {
 		CompletableFuture<java.nio.file.Path> jobGraphFileFuture = CompletableFuture.supplyAsync(() -> {
 			try {
+				// TODO_WU 持久化 JobGragh 的前缀：flink-jobgraph /后缀：.bin
 				final java.nio.file.Path jobGraphFile = Files.createTempFile("flink-jobgraph", ".bin");
 				try (ObjectOutputStream objectOut = new ObjectOutputStream(Files.newOutputStream(jobGraphFile))) {
 					objectOut.writeObject(jobGraph);
@@ -299,15 +300,20 @@ public class RestClusterClient<T> implements ClusterClient<T> {
 			}
 		}, executorService);
 
-		CompletableFuture<Tuple2<JobSubmitRequestBody, Collection<FileUpload>>> requestFuture = jobGraphFileFuture.thenApply(jobGraphFile -> {
+		// TODO_WU 等待持久化完成之后，然后加入待上传文件
+		CompletableFuture<Tuple2<JobSubmitRequestBody, Collection<FileUpload>>> requestFuture = jobGraphFileFuture.
+			// TODO_WU 处理CompletableFuture调用的结果
+			thenApply(jobGraphFile -> {
 			List<String> jarFileNames = new ArrayList<>(8);
 			List<JobSubmitRequestBody.DistributedCacheFile> artifactFileNames = new ArrayList<>(8);
 			Collection<FileUpload> filesToUpload = new ArrayList<>(8);
 
+			// TODO_WU 加入待上传的文件系列
 			filesToUpload.add(new FileUpload(jobGraphFile, RestConstants.CONTENT_TYPE_BINARY));
 
 			for (Path jar : jobGraph.getUserJars()) {
 				jarFileNames.add(jar.getName());
+
 				filesToUpload.add(new FileUpload(Paths.get(jar.toUri()), RestConstants.CONTENT_TYPE_JAR));
 			}
 
@@ -324,16 +330,18 @@ public class RestClusterClient<T> implements ClusterClient<T> {
 						new FlinkException("Failed to get the FileSystem of artifact " + artifactFilePath + ".", e));
 				}
 			}
-
+			// TODO_WU 构建提交任务的请求体，包含对应的一些资源， 主要是 jobGragh 的持久化文件 和 对应的依赖jar
 			final JobSubmitRequestBody requestBody = new JobSubmitRequestBody(
 				jobGraphFile.getFileName().toString(),
 				jarFileNames,
 				artifactFileNames);
 
+			// TODO_WU 返回requestBody 和 filesToUpload
 			return Tuple2.of(requestBody, Collections.unmodifiableCollection(filesToUpload));
 		});
 
 		final CompletableFuture<JobSubmitResponseBody> submissionFuture = requestFuture.thenCompose(
+			// TODO_WU 支持重试的提交任务
 			requestAndFileUploads -> sendRetriableRequest(
 				JobSubmitHeaders.getInstance(),
 				EmptyMessageParameters.getInstance(),
@@ -346,6 +354,7 @@ public class RestClusterClient<T> implements ClusterClient<T> {
 			.thenCombine(jobGraphFileFuture, (ignored, jobGraphFile) -> jobGraphFile)
 			.thenAccept(jobGraphFile -> {
 			try {
+				// TODO_WU 成功后删除临时文件
 				Files.delete(jobGraphFile);
 			} catch (IOException e) {
 				LOG.warn("Could not delete temporary file {}.", jobGraphFile, e);
@@ -624,8 +633,12 @@ public class RestClusterClient<T> implements ClusterClient<T> {
 
 	private <M extends MessageHeaders<R, P, U>, U extends MessageParameters, R extends RequestBody, P extends ResponseBody> CompletableFuture<P>
 	sendRetriableRequest(M messageHeaders, U messageParameters, R request, Collection<FileUpload> filesToUpload, Predicate<Throwable> retryPredicate) {
-		return retry(() -> getWebMonitorBaseUrl().thenCompose(webMonitorBaseUrl -> {
+		return retry(() ->
+			// TODO_WU 通过 getWebMonitorBaseUrl() 获取 JobManager 的 web 服务
+			getWebMonitorBaseUrl().
+				thenCompose(webMonitorBaseUrl -> {
 			try {
+				// TODO_WU 通过restful 方式提交任务
 				return restClient.sendRequest(webMonitorBaseUrl.getHost(), webMonitorBaseUrl.getPort(), messageHeaders, messageParameters, request, filesToUpload);
 			} catch (IOException e) {
 				throw new CompletionException(e);

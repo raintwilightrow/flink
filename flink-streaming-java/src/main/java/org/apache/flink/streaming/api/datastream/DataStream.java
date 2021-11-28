@@ -292,6 +292,7 @@ public class DataStream<T> {
 	 */
 	public <K> KeyedStream<T, K> keyBy(KeySelector<T, K> key) {
 		Preconditions.checkNotNull(key);
+		// TODO_WU 把普通的 DataStream 变成了 KeyedStream
 		return new KeyedStream<>(this, clean(key));
 	}
 
@@ -655,6 +656,7 @@ public class DataStream<T> {
 	 * @return The transformed {@link DataStream}.
 	 */
 	public <R> SingleOutputStreamOperator<R> flatMap(FlatMapFunction<T, R> flatMapper, TypeInformation<R> outputType) {
+		// TODO_WU userFunction->function->StreamOperator->transformations
 		return transform("Flat Map", outputType, new StreamFlatMap<>(clean(flatMapper)));
 
 	}

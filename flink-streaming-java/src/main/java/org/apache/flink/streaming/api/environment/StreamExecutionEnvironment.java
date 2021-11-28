@@ -1588,6 +1588,7 @@ public class StreamExecutionEnvironment {
 
 		clean(function);
 
+		// TODO_WU 构建streamsource
 		final StreamSource<OUT, ?> sourceOperator = new StreamSource<>(function);
 		return new DataStreamSource<>(this, typeInfo, sourceOperator, isParallel, sourceName);
 	}
@@ -1738,6 +1739,7 @@ public class StreamExecutionEnvironment {
 			"Cannot find compatible factory for specified execution.target (=%s)",
 			configuration.get(DeploymentOptions.TARGET));
 
+		// TODO_WU 异步提交执行 StreamGraph
 		CompletableFuture<? extends JobClient> jobClientFuture = executorFactory
 			.getExecutor(configuration)
 			.execute(streamGraph, configuration);

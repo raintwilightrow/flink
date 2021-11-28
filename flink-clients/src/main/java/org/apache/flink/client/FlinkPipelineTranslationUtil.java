@@ -60,6 +60,7 @@ public final class FlinkPipelineTranslationUtil {
 			return planToJobGraphTransmogrifier;
 		}
 
+		// TODO_WU 1.11将StreamGraphTranslator方法移动到flink-client
 		FlinkPipelineTranslator streamGraphTranslator = reflectStreamGraphTranslator();
 
 		if (!streamGraphTranslator.canTranslate(pipeline)) {
