@@ -213,7 +213,9 @@ public abstract class SchedulerBase implements SchedulerNG {
 		this.executionVertexVersioner = checkNotNull(executionVertexVersioner);
 		this.legacyScheduling = legacyScheduling;
 
+		// TODO_WU jobGraph -> executionGraph
 		this.executionGraph = createAndRestoreExecutionGraph(jobManagerJobMetricGroup, checkNotNull(shuffleMaster), checkNotNull(partitionTracker));
+		// TODO_WU 默认实现：DefaultExecutionTopology
 		this.schedulingTopology = executionGraph.getSchedulingTopology();
 		this.failoverTopology = executionGraph.getFailoverTopology();
 
@@ -253,6 +255,7 @@ public abstract class SchedulerBase implements SchedulerNG {
 			FailoverStrategyLoader.loadFailoverStrategy(jobMasterConfiguration, log) :
 			new NoOpFailoverStrategy.Factory();
 
+		// TODO_WU 传入的第一个参数ExecutionGraph为空
 		return ExecutionGraphBuilder.buildGraph(
 			null,
 			jobGraph,
@@ -452,6 +455,7 @@ public abstract class SchedulerBase implements SchedulerNG {
 	public final void startScheduling() {
 		mainThreadExecutor.assertRunningInMainThread();
 		registerJobMetrics();
+		//TODO_WU 1.11在此处启动OperatorCoordinator相关服务
 		startSchedulingInternal();
 	}
 

@@ -309,6 +309,7 @@ public class TaskSlotTableImpl<T extends TaskSlotPayload> implements TaskSlotTab
 			return false;
 		}
 
+		// TODO_WU 封装taskSlot Index = Slot 序号 = slotId
 		taskSlot = new TaskSlot<>(index, resourceProfile, memoryPageSize, jobId, allocationId, memoryVerificationExecutor);
 		if (index >= 0) {
 			taskSlots.put(index, taskSlot);
@@ -320,6 +321,7 @@ public class TaskSlotTableImpl<T extends TaskSlotPayload> implements TaskSlotTab
 		// register a timeout for this slot since it's in state allocated
 		timerService.registerTimeout(allocationId, slotTimeout.getSize(), slotTimeout.getUnit());
 
+		// TODO_WU 更新 job 在该节点上申请的 Slot 数量
 		// add this slot to the set of job slots
 		Set<AllocationID> slots = slotsPerJob.get(jobId);
 
@@ -328,6 +330,7 @@ public class TaskSlotTableImpl<T extends TaskSlotPayload> implements TaskSlotTab
 			slotsPerJob.put(jobId, slots);
 		}
 
+		// TODO_WU 维护 Slot 和 allocationId 之间的关系
 		slots.add(allocationId);
 
 		return true;

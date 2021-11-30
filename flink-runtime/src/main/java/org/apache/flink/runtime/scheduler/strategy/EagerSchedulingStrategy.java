@@ -49,6 +49,7 @@ public class EagerSchedulingStrategy implements SchedulingStrategy {
 
 	@Override
 	public void startScheduling() {
+		//TODO_WU 从 ExecutionGraph 中获取 待调度的 ExecutionVertex
 		allocateSlotsAndDeploy(SchedulingStrategyUtils.getAllVertexIdsFromTopology(schedulingTopology));
 	}
 
@@ -69,6 +70,7 @@ public class EagerSchedulingStrategy implements SchedulingStrategy {
 
 	private void allocateSlotsAndDeploy(final Set<ExecutionVertexID> verticesToDeploy) {
 		final List<ExecutionVertexDeploymentOption> executionVertexDeploymentOptions =
+			//TODO_WU DefaultExecutionVertex/ExecutionVertexID集 变成 ExecutionVertexDeploymentOption
 			SchedulingStrategyUtils.createExecutionVertexDeploymentOptionsInTopologicalOrder(
 				schedulingTopology,
 				verticesToDeploy,

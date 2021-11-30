@@ -35,6 +35,8 @@ public enum DistributionPattern {
 
 	/**
 	 * Each producing sub task is connected to one or more subtask(s) of the consuming task.
+	 * {@link RescalePartitioner} 中使用 数据本地性比较好，减少了网络IO，但是不如 RebalancePartitioner数据均衡
+	 *
 	 * <p>
 	 * {@link ExecutionVertex#connectPointwise(org.apache.flink.runtime.executiongraph.IntermediateResultPartition[], int)}
 	 */

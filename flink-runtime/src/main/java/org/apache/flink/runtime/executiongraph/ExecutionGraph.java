@@ -797,12 +797,14 @@ public class ExecutionGraph implements AccessExecutionGraph {
 		final ArrayList<ExecutionJobVertex> newExecJobVertices = new ArrayList<>(topologiallySorted.size());
 		final long createTimestamp = System.currentTimeMillis();
 
+		// TODO_WU 遍历所有的 JobVertex
 		for (JobVertex jobVertex : topologiallySorted) {
 
 			if (jobVertex.isInputVertex() && !jobVertex.isStoppable()) {
 				this.isStoppable = false;
 			}
 
+			// TODO_WU 一个 JobVertex 对应的创建一个 ExecutionJobVertex
 			// create the execution job vertex and attach it to the graph
 			ExecutionJobVertex ejv = new ExecutionJobVertex(
 					this,
@@ -813,14 +815,17 @@ public class ExecutionGraph implements AccessExecutionGraph {
 					globalModVersion,
 					createTimestamp);
 
+			// TODO_WU edge -> IntermediateResult 并关联到ExecutorVertex
 			ejv.connectToPredecessors(this.intermediateResults);
 
+			// TODO_WU 将生成好的 ExecutionJobVertex 加入到 ExecutionGraph 中
 			ExecutionJobVertex previousTask = this.tasks.putIfAbsent(jobVertex.getID(), ejv);
 			if (previousTask != null) {
 				throw new JobException(String.format("Encountered two job vertices with ID %s : previous=[%s] / new=[%s]",
 					jobVertex.getID(), ejv, previousTask));
 			}
 
+			// TODO_WU 将当前 ExecutionJobVertex 的输入 IntermediateResult 加入到 intermediateResults map 中
 			for (IntermediateResult res : ejv.getProducedDataSets()) {
 				IntermediateResult previousDataSet = this.intermediateResults.putIfAbsent(res.getId(), res);
 				if (previousDataSet != null) {
@@ -829,16 +834,20 @@ public class ExecutionGraph implements AccessExecutionGraph {
 				}
 			}
 
+			// TODO_WU 使用创建顺序保存的 ExecutionJobVertex
 			this.verticesInCreationOrder.add(ejv);
+			// TODO_WU 总并行度
 			this.numVerticesTotal += ejv.getParallelism();
 			newExecJobVertices.add(ejv);
 		}
 
+		// TODO_WU 主要作用是把 ExecutionGraph 中的 ExecutionVertex 封装成 待调度的 DefaultExecutionVertex
 		// the topology assigning should happen before notifying new vertices to failoverStrategy
 		executionTopology = new DefaultExecutionTopology(this);
 
 		failoverStrategy.notifyNewVertices(newExecJobVertices);
 
+		// TODO_WU 返回RegionPartitionReleaseStrategy
 		partitionReleaseStrategy = partitionReleaseStrategyFactory.createInstance(getSchedulingTopology());
 	}
 
@@ -1651,6 +1660,7 @@ public class ExecutionGraph implements AccessExecutionGraph {
 
 			for (JobStatusListener listener : jobStatusListeners) {
 				try {
+					//TODO_WU 调用监听的回调方法
 					listener.jobStatusChanges(getJobID(), newState, timestamp, serializedError);
 				} catch (Throwable t) {
 					LOG.warn("Error while notifying JobStatusListener", t);

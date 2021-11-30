@@ -170,7 +170,10 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
 	@Override
 	protected void startSchedulingInternal() {
 		log.info("Starting scheduling with scheduling strategy [{}]", schedulingStrategy.getClass().getName());
+		//TODO_WU 更改 Job 的状态为running
 		prepareExecutionGraphForNgScheduling();
+		//TODO_WU EagerSchedulingStrategy（主要用于流式作业，所有顶点（ExecutionVertex）同时开始调度）
+		//TODO_WU LazyFromSourcesSchedulingStrategy（主要用于批作业，从 Source 开始开始调度，其他顶点延迟调度）调度
 		schedulingStrategy.startScheduling();
 	}
 
@@ -282,6 +285,7 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
 
 	@Override
 	public void allocateSlotsAndDeploy(final List<ExecutionVertexDeploymentOption> executionVertexDeploymentOptions) {
+		//TODO_WU executionVertexDeploymentOptions就是ExecutionVertex的列表
 		validateDeploymentOptions(executionVertexDeploymentOptions);
 
 		final Map<ExecutionVertexID, ExecutionVertexDeploymentOption> deploymentOptionsByVertex =
@@ -294,7 +298,9 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
 		final Map<ExecutionVertexID, ExecutionVertexVersion> requiredVersionByVertex =
 			executionVertexVersioner.recordVertexModifications(verticesToDeploy);
 
+		//TODO_WU 更改 ExectionVertex 状态
 		transitionToScheduled(verticesToDeploy);
+
 
 		final List<SlotExecutionVertexAssignment> slotExecutionVertexAssignments =
 			allocateSlots(executionVertexDeploymentOptions);
@@ -328,8 +334,10 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
 	}
 
 	private List<SlotExecutionVertexAssignment> allocateSlots(final List<ExecutionVertexDeploymentOption> executionVertexDeploymentOptions) {
+		//TODO_WU 通过 ExecutionSlotAllocator slot申请器 来申请 Slots
 		return executionSlotAllocator.allocateSlotsFor(executionVertexDeploymentOptions
 			.stream()
+			// ExecutionVertexDeploymentOption ==> ExecutionVertexId ==> ExecutionVertex ==> ExecutionVertexSchedulingRequirements
 			.map(ExecutionVertexDeploymentOption::getExecutionVertexId)
 			.map(this::getExecutionVertex)
 			.map(ExecutionVertexSchedulingRequirementsMapper::from)

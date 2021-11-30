@@ -243,8 +243,10 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 
 		resourceManagerLeaderRetriever = highAvailabilityServices.getResourceManagerLeaderRetriever();
 
+		// TODO_WU defaultSlotPoolFactory
 		this.slotPool = checkNotNull(slotPoolFactory).createSlotPool(jobGraph.getJobID());
 
+		// TODO_WU defaultScheduler
 		this.scheduler = checkNotNull(schedulerFactory).createScheduler(slotPool);
 
 		this.registeredTaskManagers = new HashMap<>(4);
@@ -263,6 +265,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 		this.shuffleMaster = checkNotNull(shuffleMaster);
 
 		this.jobManagerJobMetricGroup = jobMetricGroupFactory.create(jobGraph);
+		// TODO_WU 默认获得DefaultScheduler 1.11移除LegacyScheduler
 		this.schedulerNG = createScheduler(jobManagerJobMetricGroup);
 		this.jobStatusListener = null;
 
@@ -272,6 +275,8 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 		this.accumulators = new HashMap<>();
 		this.taskManagerHeartbeatManager = NoOpHeartbeatManager.getInstance();
 		this.resourceManagerHeartbeatManager = NoOpHeartbeatManager.getInstance();
+
+		// TODO_WU RPCendpoint方法 自动执行onstart方法，但是没有对应的方法
 	}
 
 	private SchedulerNG createScheduler(final JobManagerJobMetricGroup jobManagerJobMetricGroup) throws Exception {
@@ -306,7 +311,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 	public CompletableFuture<Acknowledge> start(final JobMasterId newJobMasterId) throws Exception {
 		// make sure we receive RPC and async calls
 		start();
-
+		// TODO_WU 启动JobMaster并通过JobMaster执行分配的Job
 		return callAsyncWithoutFencing(() -> startJobExecution(newJobMasterId), RpcUtils.INF_TIMEOUT);
 	}
 
@@ -497,6 +502,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 			final Collection<SlotOffer> slots,
 			final Time timeout) {
 
+		// TODO_WU 通过registeredTaskManagers 中该 TaskManagerID 对应的 TaskManager
 		Tuple2<TaskManagerLocation, TaskExecutorGateway> taskManager = registeredTaskManagers.get(taskManagerId);
 
 		if (taskManager == null) {
@@ -687,6 +693,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 
 	private Acknowledge startJobExecution(JobMasterId newJobMasterId) throws Exception {
 
+		// TODO_WU 检测当前RPC主线程是否已正常运行
 		validateRunsInMainThread();
 
 		checkNotNull(newJobMasterId, "The new JobMasterId must not be null.");
@@ -697,24 +704,31 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 			return Acknowledge.get();
 		}
 
+		// TODO_WU 为JobMasterId设定新的Fencing Token，用于RPC通信
 		setNewFencingToken(newJobMasterId);
 
+		// TODO_WU 启动JobMasterServices服务
 		startJobMasterServices();
 
 		log.info("Starting execution of job {} ({}) under job master id {}.", jobGraph.getName(), jobGraph.getJobID(), newJobMasterId);
 
+		// TODO_WU 为Job分配调度器，从而分布式调度执行StreamTask
 		resetAndStartScheduler();
 
 		return Acknowledge.get();
 	}
 
 	private void startJobMasterServices() throws Exception {
+		// TODO_WU 启动心跳服务
 		startHeartbeatServices();
 
+		// TODO_WU 启动JobMaster中的slotPool服务，该服务主要负责JobManager的Slot资源管理
 		// start the slot pool make sure the slot pool now accepts messages for this leader
 		slotPool.start(getFencingToken(), getAddress(), getMainThreadExecutor());
+		// TODO_WU 启动JobMaster中的scheduler服务，该服务主要负责Task的调度和执行
 		scheduler.start(getMainThreadExecutor());
 
+		// TODO_WU 创建ResourceManager连接，注册该 JobMaster并获取Slot资源
 		//TODO: Remove once the ZooKeeperLeaderRetrieval returns the stored address upon start
 		// try to reconnect to previously known leader
 		reconnectToResourceManager(new FlinkException("Starting JobMaster component."));
@@ -792,12 +806,14 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 	}
 
 	private void startHeartbeatServices() {
+		// TODO_WU
 		taskManagerHeartbeatManager = heartbeatServices.createHeartbeatManagerSender(
 			resourceId,
 			new TaskManagerHeartbeatListener(),
 			getMainThreadExecutor(),
 			log);
 
+		// TODO_WU
 		resourceManagerHeartbeatManager = heartbeatServices.createHeartbeatManager(
 			resourceId,
 			new ResourceManagerHeartbeatListener(),
@@ -817,6 +833,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 	}
 
 	private void resetAndStartScheduler() throws Exception {
+		//TODO_WU 确认RPC服务主线程状态正常
 		validateRunsInMainThread();
 
 		final CompletableFuture<Void> schedulerAssignedFuture;
@@ -827,22 +844,27 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 		} else {
 			suspendAndClearSchedulerFields(new FlinkException("ExecutionGraph is being reset in order to be rescheduled."));
 			final JobManagerJobMetricGroup newJobManagerJobMetricGroup = jobMetricGroupFactory.create(jobGraph);
+			//TODO_WU 创建SchedulerNG调度器， 返回 DefaultScheduler
 			final SchedulerNG newScheduler = createScheduler(newJobManagerJobMetricGroup);
 
 			schedulerAssignedFuture = schedulerNG.getTerminationFuture().handle(
 				(ignored, throwable) -> {
+					//TODO_WU 给 SchedulerNG 设置线程池 MainThreadExecutor
 					newScheduler.setMainThreadExecutor(getMainThreadExecutor());
+					//TODO_WU 设置成当前 JobMaster 的成员变量
 					assignScheduler(newScheduler, newJobManagerJobMetricGroup);
 					return null;
 				}
 			);
 		}
 
+		//TODO_WU 正式开始Job的任务调度，分别执行ExecutionGraph中的节点
 		schedulerAssignedFuture.thenRun(this::startScheduling);
 	}
 
 	private void startScheduling() {
 		checkState(jobStatusListener == null);
+		//TODO_WU 在调度器中注册JobStatusListener，用于反馈Job执行信息
 		// register self as job status change listener
 		jobStatusListener = new JobManagerJobStatusListener();
 		schedulerNG.registerJobStatusListener(jobStatusListener);
@@ -919,7 +941,9 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 	}
 
 	private void reconnectToResourceManager(Exception cause) {
+		// TODO_WU 先关掉和 ResourceManager 的链接
 		closeResourceManagerConnection(cause);
+		// TODO_WU 重连
 		tryConnectToResourceManager();
 	}
 
@@ -936,6 +960,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 
 		log.info("Connecting to ResourceManager {}", resourceManagerAddress);
 
+		// TODO_WU 创建 ResourceManagerConnection
 		resourceManagerConnection = new ResourceManagerConnection(
 			log,
 			jobGraph.getJobID(),
@@ -966,6 +991,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 				resourceManagerGateway,
 				resourceManagerResourceId);
 
+			// TODO_WU slotPool连接到ResourceManager
 			slotPool.connectToResourceManager(resourceManagerGateway);
 
 			resourceManagerHeartbeatManager.monitorTarget(resourceManagerResourceId, new HeartbeatTarget<Void>() {
@@ -1086,7 +1112,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 				protected CompletableFuture<RegistrationResponse> invokeRegistration(
 						ResourceManagerGateway gateway, ResourceManagerId fencingToken, long timeoutMillis) {
 					Time timeout = Time.milliseconds(timeoutMillis);
-
+					// TODO_WU 将当前这个 JobMaster 注册到 ResourceManager 的代理对象 gateway
 					return gateway.registerJobManager(
 						jobMasterId,
 						jobManagerResourceID,

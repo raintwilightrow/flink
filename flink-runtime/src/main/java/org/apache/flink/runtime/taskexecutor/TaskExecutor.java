@@ -826,13 +826,17 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 			allocationId, jobId, resourceManagerId);
 
 		try {
+			// TODO_WU 判断发送请求的 ResourceManager 是否是当前 TaskExecutor 注册的 ResourceManager
 			if (!isConnectedToResourceManager(resourceManagerId)) {
 				final String message = String.format("TaskManager is not connected to the resource manager %s.", resourceManagerId);
 				log.debug(message);
+				// TODO_WU 1.11使用FutureUtils.completedExceptionally将异常抛出
 				throw new TaskManagerException(message);
 			}
 
+			// TODO_WU 如果有参数数量的 Slot 空余，则分配
 			if (taskSlotTable.isSlotFree(slotId.getSlotNumber())) {
+				// TODO_WU 分配 Slot 在 TaskExecutor 上，标识已经被使用
 				if (taskSlotTable.allocateSlot(slotId.getSlotNumber(), jobId, allocationId, resourceProfile, taskManagerConfiguration.getTimeout())) {
 					log.info("Allocated slot for {}.", allocationId);
 				} else {
@@ -848,7 +852,15 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 				throw new SlotOccupiedException(message, allocationID, taskSlotTable.getOwningJob(allocationID));
 			}
 
+			// TODO_WU 1.11在此处初始化slot所需的初始化环境
+			/**
+			 * jobLeaderService.addJob
+			 * PermanentBlobCache.registerJob 存储大文件 1.10在task初始化时
+			 * LibraryCacheManager.registerClassLoaderLease FLINK-16408
+			 */
+
 			if (jobManagerTable.contains(jobId)) {
+				// TODO_WU 提供一个 Slot 给 JobManager（JobMaster）
 				offerSlotsToJobManager(jobId);
 			} else {
 				try {
@@ -1138,18 +1150,22 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 			if (taskSlotTable.hasAllocatedSlots(jobId)) {
 				log.info("Offer reserved slots to the leader of job {}.", jobId);
 
+				// TODO_WU 获取 JobMaster 地址
 				final JobMasterGateway jobMasterGateway = jobManagerConnection.getJobManagerGateway();
 
+				// TODO_WU 获取分配给当前 Job 的 slot，只会取得状态为 allocated 的 slot
 				final Iterator<TaskSlot<Task>> reservedSlotsIterator = taskSlotTable.getAllocatedSlots(jobId);
 				final JobMasterId jobMasterId = jobManagerConnection.getJobMasterId();
 
 				final Collection<SlotOffer> reservedSlots = new HashSet<>(2);
 
+				// TODO_WU slot -> SlotOffer
 				while (reservedSlotsIterator.hasNext()) {
 					SlotOffer offer = reservedSlotsIterator.next().generateSlotOffer();
 					reservedSlots.add(offer);
 				}
 
+				// TODO_WU 将 Slot 分配给 JobMaster
 				CompletableFuture<Collection<SlotOffer>> acceptedSlotsFuture = jobMasterGateway.offerSlots(
 					getResourceID(),
 					reservedSlots,
@@ -1176,6 +1192,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 					log.warn("Slot offering to JobManager failed. Freeing the slots " +
 						"and returning them to the ResourceManager.", throwable);
 
+					// TODO_WU 报错异常，则释放 Slot
 					// We encountered an exception. Free the slots and return them to the RM.
 					for (SlotOffer reservedSlot: offeredSlots) {
 						freeSlotInternal(reservedSlot.getAllocationId(), throwable);
@@ -1187,6 +1204,8 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 					// mark accepted slots active
 					for (SlotOffer acceptedSlot : acceptedSlots) {
 						try {
+							// TODO_WU 当尝试标记这个 Slot 为 Active
+							// 失败的时候，调用 failSlot 告知 JobMaster
 							if (!taskSlotTable.markSlotActive(acceptedSlot.getAllocationId())) {
 								// the slot is either free or releasing at the moment
 								final String message = "Could not mark slot " + jobId + " active.";

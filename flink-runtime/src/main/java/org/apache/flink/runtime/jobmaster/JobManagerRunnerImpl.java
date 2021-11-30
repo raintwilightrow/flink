@@ -137,11 +137,14 @@ public class JobManagerRunnerImpl implements LeaderContender, OnCompletionAction
 			}
 
 			// high availability services next
+			// TODO_WU 获得ZooKeeperRunningJobsRegistry
 			this.runningJobsRegistry = haServices.getRunningJobsRegistry();
+			// TODO_WU 返回 ZooKeeperLeaderElectionService
 			this.leaderElectionService = haServices.getJobManagerLeaderElectionService(jobGraph.getJobID());
 
 			this.leaderGatewayFuture = new CompletableFuture<>();
 
+			// TODO_WU 创建 JobMaster
 			// now start the JobManager
 			this.jobMasterService = jobMasterFactory.createJobMasterService(jobGraph, this, userCodeLoader);
 		}
@@ -179,6 +182,7 @@ public class JobManagerRunnerImpl implements LeaderContender, OnCompletionAction
 	@Override
 	public void start() throws Exception {
 		try {
+			// TODO_WU HA下调用 ZooKeeperLeaderElectionService 的 isLeader() 方法
 			leaderElectionService.start(this);
 		} catch (Exception e) {
 			log.error("Could not start the JobManager because the leader election service did not start.", e);
@@ -292,6 +296,7 @@ public class JobManagerRunnerImpl implements LeaderContender, OnCompletionAction
 			leadershipOperation = leadershipOperation.thenCompose(
 				(ignored) -> {
 					synchronized (lock) {
+						// TODO_WU 判断任务状态后启动JobMaster
 						return verifyJobSchedulingStatusAndStartJobManager(leaderSessionID);
 					}
 				});
@@ -301,6 +306,7 @@ public class JobManagerRunnerImpl implements LeaderContender, OnCompletionAction
 	}
 
 	private CompletableFuture<Void> verifyJobSchedulingStatusAndStartJobManager(UUID leaderSessionId) {
+		// TODO_WU 获取 Job 的调度状态
 		final CompletableFuture<JobSchedulingStatus> jobSchedulingStatusFuture = getJobSchedulingStatus();
 
 		return jobSchedulingStatusFuture.thenCompose(
@@ -308,6 +314,7 @@ public class JobManagerRunnerImpl implements LeaderContender, OnCompletionAction
 				if (jobSchedulingStatus == JobSchedulingStatus.DONE) {
 					return jobAlreadyDone();
 				} else {
+					// TODO_WU 启动 JobMaster
 					return startJobMaster(leaderSessionId);
 				}
 			});
@@ -318,6 +325,7 @@ public class JobManagerRunnerImpl implements LeaderContender, OnCompletionAction
 			jobGraph.getName(), jobGraph.getJobID(), leaderSessionId, jobMasterService.getAddress());
 
 		try {
+			// TODO_WU 注册Job信息至RunningJobsRegistry 例如zk
 			runningJobsRegistry.setJobRunning(jobGraph.getJobID());
 		} catch (IOException e) {
 			return FutureUtils.completedExceptionally(
@@ -328,6 +336,7 @@ public class JobManagerRunnerImpl implements LeaderContender, OnCompletionAction
 
 		final CompletableFuture<Acknowledge> startFuture;
 		try {
+			// TODO_WU 启动 JobMaster
 			startFuture = jobMasterService.start(new JobMasterId(leaderSessionId));
 		} catch (Exception e) {
 			return FutureUtils.completedExceptionally(new FlinkException("Failed to start the JobMaster.", e));
@@ -335,6 +344,7 @@ public class JobManagerRunnerImpl implements LeaderContender, OnCompletionAction
 
 		final CompletableFuture<JobMasterGateway> currentLeaderGatewayFuture = leaderGatewayFuture;
 		return startFuture.thenAcceptAsync(
+			// TODO_WU 确认Leadership已经接受
 			(Acknowledge ack) -> confirmLeaderSessionIdIfStillLeader(
 				leaderSessionId,
 				jobMasterService.getAddress(),

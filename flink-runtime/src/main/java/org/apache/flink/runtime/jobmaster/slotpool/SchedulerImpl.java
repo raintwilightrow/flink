@@ -156,7 +156,9 @@ public class SchedulerImpl implements Scheduler {
 			SlotProfile slotProfile,
 			Time allocationTimeout) {
 		CompletableFuture<LogicalSlot> allocationFuture = scheduledUnit.getSlotSharingGroupId() == null ?
+			// TODO_WU 没有指定 SlotSharingGroupId，任务不运行 slot 共享，独占一个 slot 申请 SingleSlot
 			allocateSingleSlot(slotRequestId, slotProfile, allocationTimeout) :
+			// TODO_WU 设置有 SlotSharingGroup， 调用： allocateSharedSlot 申请 SharedSlot
 			allocateSharedSlot(slotRequestId, scheduledUnit, slotProfile, allocationTimeout);
 
 		allocationFuture.whenComplete((LogicalSlot slot, Throwable failure) -> {
@@ -202,17 +204,20 @@ public class SchedulerImpl implements Scheduler {
 			SlotProfile slotProfile,
 			@Nullable Time allocationTimeout) {
 
+		// TODO_WU 先尝试从 SlotPool 可用的 AllocatedSlot 中获取
 		Optional<SlotAndLocality> slotAndLocality = tryAllocateFromAvailable(slotRequestId, slotProfile);
 
 		if (slotAndLocality.isPresent()) {
 			// already successful from available
 			try {
+				// TODO_WU 如果有已经有可用的了，就创建一个 SingleLogicalSlot，并作为 AllocatedSlot 的payload
 				return CompletableFuture.completedFuture(
 					completeAllocationByAssigningPayload(slotRequestId, slotAndLocality.get()));
 			} catch (FlinkException e) {
 				return FutureUtils.completedExceptionally(e);
 			}
 		} else {
+			// TODO_WU 首次进入调用： requestNewAllocatedSlot()
 			// we allocate by requesting a new slot
 			return requestNewAllocatedSlot(slotRequestId, slotProfile, allocationTimeout)
 				.thenApply((PhysicalSlot allocatedSlot) -> {
@@ -231,6 +236,7 @@ public class SchedulerImpl implements Scheduler {
 			SlotProfile slotProfile,
 			@Nullable Time allocationTimeout) {
 		if (allocationTimeout == null) {
+			// TODO_WU 批任务allocationTimeout为空
 			return slotPool.requestNewAllocatedBatchSlot(slotRequestId, slotProfile.getPhysicalSlotResourceProfile());
 		} else {
 			return slotPool.requestNewAllocatedSlot(slotRequestId, slotProfile.getPhysicalSlotResourceProfile(), allocationTimeout);
@@ -279,6 +285,7 @@ public class SchedulerImpl implements Scheduler {
 				slotRequestId,
 				slotInfoAndLocality.getSlotInfo().getAllocationId());
 
+			// TODO_WU 返回 SlotAndLocality
 			return optionalAllocatedSlot.map(
 				allocatedSlot -> new SlotAndLocality(allocatedSlot, slotInfoAndLocality.getLocality()));
 		});

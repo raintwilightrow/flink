@@ -90,9 +90,11 @@ public abstract class RegisteredRpcConnection<F extends Serializable, G extends 
 		checkState(!closed, "The RPC connection is already closed");
 		checkState(!isConnected() && pendingRegistration == null, "The RPC connection is already started");
 
+		// TODO_WU 创建注册对象，并且在创建成功之后，进行 Slot 汇报
 		final RetryingRegistration<F, G, S> newRegistration = createNewRegistration();
 
 		if (REGISTRATION_UPDATER.compareAndSet(this, null, newRegistration)) {
+			// TODO_WU 开始注册
 			newRegistration.startRegistration();
 		} else {
 			// concurrent start operation
@@ -215,7 +217,15 @@ public abstract class RegisteredRpcConnection<F extends Serializable, G extends 
 	// ------------------------------------------------------------------------
 
 	private RetryingRegistration<F, G, S> createNewRegistration() {
-		RetryingRegistration<F, G, S> newRegistration = checkNotNull(generateRegistration());
+		RetryingRegistration<F, G, S> newRegistration = checkNotNull(
+			// TODO_WU 生成注册对象 ResourceManagerRegistration
+			/**
+			 * taskexcutor注册时调用
+			 * {@link org.apache.flink.runtime.taskexecutor.TaskExecutorToResourceManagerConnection}
+			 * jobmaster注册时调用
+			 * {@link org.apache.flink.runtime.jobmaster.JobMaster.ResourceManagerConnection}
+			 */
+			generateRegistration());
 
 		CompletableFuture<Tuple2<G, S>> future = newRegistration.getFuture();
 

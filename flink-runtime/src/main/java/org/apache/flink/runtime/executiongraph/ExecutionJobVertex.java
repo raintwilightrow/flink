@@ -434,12 +434,14 @@ public class ExecutionJobVertex implements AccessExecutionJobVertex, Archiveable
 
 	public void connectToPredecessors(Map<IntermediateDataSetID, IntermediateResult> intermediateDataSets) throws JobException {
 
+		// TODO_WU  获取该 jobVertex 的所有输入 JobEdge
 		List<JobEdge> inputs = jobVertex.getInputs();
 
 		if (LOG.isDebugEnabled()) {
 			LOG.debug(String.format("Connecting ExecutionJobVertex %s (%s) to %d predecessors.", jobVertex.getID(), jobVertex.getName(), inputs.size()));
 		}
 
+		// TODO_WU 遍历每个 JobEdge
 		for (int num = 0; num < inputs.size(); num++) {
 			JobEdge edge = inputs.get(num);
 
@@ -453,6 +455,7 @@ public class ExecutionJobVertex implements AccessExecutionJobVertex, Archiveable
 				}
 			}
 
+			// TODO_WU 获取到 JobEdge 链接的 IntermediateResult
 			// fetch the intermediate result via ID. if it does not exist, then it either has not been created, or the order
 			// in which this method is called for the job vertices is not a topological order
 			IntermediateResult ires = intermediateDataSets.get(edge.getSourceId());
@@ -461,10 +464,12 @@ public class ExecutionJobVertex implements AccessExecutionJobVertex, Archiveable
 						+ edge.getSourceId());
 			}
 
+			// TODO_WU 将当前 IntermediateResult 加入 inputs 集合 作为 ExecutionJobVertex 的输入
 			this.inputs.add(ires);
 
 			int consumerIndex = ires.registerConsumer();
 
+			// TODO_WU 根据并行度来关联 IntermediateResult 和 ExecutionVertex
 			for (int i = 0; i < parallelism; i++) {
 				ExecutionVertex ev = taskVertices[i];
 				ev.connectSource(num, ires, edge, consumerIndex);

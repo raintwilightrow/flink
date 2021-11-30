@@ -33,7 +33,9 @@ import java.util.stream.Collectors;
 class SchedulingStrategyUtils {
 
 	static Set<ExecutionVertexID> getAllVertexIdsFromTopology(final SchedulingTopology<?, ?> topology) {
-		return IterableUtils.toStream(topology.getVertices())
+		return IterableUtils.toStream(
+			//TODO_WU
+			topology.getVertices())
 			.map(SchedulingExecutionVertex::getId)
 			.collect(Collectors.toSet());
 	}

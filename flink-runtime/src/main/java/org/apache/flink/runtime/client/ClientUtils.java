@@ -99,6 +99,7 @@ public enum ClientUtils {
 	private static Collection<PermanentBlobKey> uploadUserJars(JobID jobId, Collection<Path> userJars, BlobClient blobClient) throws IOException {
 		Collection<PermanentBlobKey> blobKeys = new ArrayList<>(userJars.size());
 		for (Path jar : userJars) {
+			// TODO_WU 通过 BlobClient 上传 jar 等资源到 BlobServer
 			final PermanentBlobKey blobKey = blobClient.uploadFile(jobId, jar);
 			blobKeys.add(blobKey);
 		}

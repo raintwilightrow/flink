@@ -304,8 +304,10 @@ public class SlotPoolImpl implements SlotPool {
 	private CompletableFuture<AllocatedSlot> requestNewAllocatedSlotInternal(PendingRequest pendingRequest) {
 
 		if (resourceManagerGateway == null) {
+			// TODO_WU 如果还没有和 ResourceManager 建立连接， 则先把请求存储waitingForResourceManager，待建立连接之后，再来处理这些请求
 			stashRequestWaitingForResourceManager(pendingRequest);
 		} else {
+			// TODO_WU 向 ResourceManager 申请 slot
 			requestSlotFromResourceManager(resourceManagerGateway, pendingRequest);
 		}
 
@@ -321,6 +323,7 @@ public class SlotPoolImpl implements SlotPool {
 
 		log.info("Requesting new slot [{}] and profile {} from resource manager.", pendingRequest.getSlotRequestId(), pendingRequest.getResourceProfile());
 
+		// TODO_WU 构造一个 AllocationID 防止重复申请
 		final AllocationID allocationId = new AllocationID();
 
 		pendingRequests.put(pendingRequest.getSlotRequestId(), allocationId, pendingRequest);
@@ -334,6 +337,7 @@ public class SlotPoolImpl implements SlotPool {
 				}
 			});
 
+		// TODO_WU rpc发送请求
 		CompletableFuture<Acknowledge> rmResponse = resourceManagerGateway.requestSlot(
 			jobMasterId,
 			new SlotRequest(jobId, allocationId, pendingRequest.getResourceProfile(), jobManagerAddress),
@@ -418,6 +422,7 @@ public class SlotPoolImpl implements SlotPool {
 
 		componentMainThreadExecutor.assertRunningInMainThread();
 
+		// TODO_WU 创建请求
 		final PendingRequest pendingRequest = PendingRequest.createStreamingRequest(slotRequestId, resourceProfile);
 
 		// register request timeout
@@ -663,6 +668,7 @@ public class SlotPoolImpl implements SlotPool {
 			}
 		}
 		else {
+			// TODO_WU 申请可用的 Slot
 			// we were actually not waiting for this:
 			//   - could be that this request had been fulfilled
 			//   - we are receiving the slots from TaskManagers after becoming leaders

@@ -30,7 +30,14 @@ import org.apache.commons.lang3.StringEscapeUtils;
 import java.io.StringWriter;
 import java.util.List;
 
-
+/** e.g.
+ *  {"jid": "", "name": "", "nodes": [
+ *  	{"id": "", "parallelism": "", "operator": "", "operator_strategy": "", "description": "", "inputs": ["num": "", "id": "", "exchange": ""]},
+ *  	{"id": "", "parallelism": "", "operator": "", "operator_strategy": "", "description": "", "inputs": ["num": "", "id": "", "exchange": ""]},
+ *  	{"id": "", "parallelism": "", "operator": "", "operator_strategy": "", "description": "", "inputs": ["num": "", "id": "", "exchange": ""]},
+ *  	...
+ *  ], "optimizer_properties": ""}
+ */
 public class JsonPlanGenerator {
 	
 	private static final String NOT_SET = "";
@@ -99,6 +106,7 @@ public class JsonPlanGenerator {
 						String operatorLevelCaching = edge.getOperatorLevelCachingDescription();
 						
 						gen.writeStartObject();
+						// TODO_WU 在 inputs 节点下面，再写入 num 和  id 子节点
 						gen.writeNumberField("num", inputNum);
 						gen.writeStringField("id", predecessor.getID().toString());
 
@@ -111,7 +119,8 @@ public class JsonPlanGenerator {
 						if (operatorLevelCaching != null) {
 							gen.writeStringField("caching", operatorLevelCaching);
 						}
-						
+
+						// TODO_WU 在 inputs 节点下面，再写入 exchange 子节点
 						gen.writeStringField("exchange", edge.getSource().getResultType().name().toLowerCase());
 						
 						gen.writeEndObject();

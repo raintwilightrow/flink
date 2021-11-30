@@ -77,6 +77,7 @@ public final class JobSubmitHandler extends AbstractRestHandler<DispatcherGatewa
 
 	@Override
 	protected CompletableFuture<JobSubmitResponseBody> handleRequest(@Nonnull HandlerRequest<JobSubmitRequestBody, EmptyMessageParameters> request, @Nonnull DispatcherGateway gateway) throws RestHandlerException {
+		// TODO_WU 从请求中获取文件
 		final Collection<File> uploadedFiles = request.getUploadedFiles();
 		final Map<String, Path> nameToFile = uploadedFiles.stream().collect(Collectors.toMap(
 			File::getName,
@@ -93,6 +94,7 @@ public final class JobSubmitHandler extends AbstractRestHandler<DispatcherGatewa
 			);
 		}
 
+		// TODO_WU 拿到请求体
 		final JobSubmitRequestBody requestBody = request.getRequestBody();
 
 		if (requestBody.jobGraphFileName == null) {
@@ -102,17 +104,23 @@ public final class JobSubmitHandler extends AbstractRestHandler<DispatcherGatewa
 				HttpResponseStatus.BAD_REQUEST);
 		}
 
+		// TODO_WU 异步反序列化获得jobgraph
 		CompletableFuture<JobGraph> jobGraphFuture = loadJobGraph(requestBody, nameToFile);
 
+		// TODO_WU 得到 jar
 		Collection<Path> jarFiles = getJarFilesToUpload(requestBody.jarFileNames, nameToFile);
 
+		// TODO_WU 获取 依赖 jar
 		Collection<Tuple2<String, Path>> artifacts = getArtifactFilesToUpload(requestBody.artifactFileNames, nameToFile);
 
 		CompletableFuture<JobGraph> finalizedJobGraphFuture = uploadJobGraphFiles(gateway, jobGraphFuture, jarFiles, artifacts, configuration);
 
-		CompletableFuture<Acknowledge> jobSubmissionFuture = finalizedJobGraphFuture.thenCompose(jobGraph -> gateway.submitJob(jobGraph, timeout));
+		CompletableFuture<Acknowledge> jobSubmissionFuture = finalizedJobGraphFuture.thenCompose(
+			// TODO_WU 通过Dispatcher提交任务
+			jobGraph -> gateway.submitJob(jobGraph, timeout));
 
 		return jobSubmissionFuture.thenCombine(jobGraphFuture,
+			// TODO_WU 封装处理响应返回
 			(ack, jobGraph) -> new JobSubmitResponseBody("/jobs/" + jobGraph.getJobID()));
 	}
 
@@ -164,6 +172,7 @@ public final class JobSubmitHandler extends AbstractRestHandler<DispatcherGatewa
 		return jobGraphFuture.thenCombine(blobServerPortFuture, (JobGraph jobGraph, Integer blobServerPort) -> {
 			final InetSocketAddress address = new InetSocketAddress(gateway.getHostname(), blobServerPort);
 			try {
+				// TODO_WU 通过 BlobClient 来上传 jar 资源和依赖 jar 和 jobGraph
 				ClientUtils.uploadJobGraphFiles(jobGraph, jarFiles, artifacts, () -> new BlobClient(address, configuration));
 			} catch (FlinkException e) {
 				throw new CompletionException(new RestHandlerException(

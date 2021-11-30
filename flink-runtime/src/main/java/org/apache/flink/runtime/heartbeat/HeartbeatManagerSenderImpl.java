@@ -70,6 +70,7 @@ public class HeartbeatManagerSenderImpl<I, O> extends HeartbeatManagerImpl<I, O>
 			heartbeatMonitorFactory);
 
 		this.heartbeatPeriod = heartbeatPeriod;
+		// TODO_WU 执行的就是当前类的 run() 方法
 		mainThreadExecutor.schedule(this, 0L, TimeUnit.MILLISECONDS);
 	}
 

@@ -84,11 +84,13 @@ public class DefaultExecutionSlotAllocator implements ExecutionSlotAllocator {
 
 		validateSchedulingRequirements(executionVertexSchedulingRequirements);
 
+		//TODO_WU  1、首先初始化一个ArrayList，用来存储申请到的 SlotExecutionVertexAssignment
 		List<SlotExecutionVertexAssignment> slotExecutionVertexAssignments =
 				new ArrayList<>(executionVertexSchedulingRequirements.size());
 
 		Set<AllocationID> allPreviousAllocationIds = computeAllPriorAllocationIds(executionVertexSchedulingRequirements);
 
+		//TODO_WU 2、遍历待申请slot的 ExecutionVertex 集合： executionVertexSchedulingRequirements， 依次执行 slot 申请
 		for (ExecutionVertexSchedulingRequirements schedulingRequirements : executionVertexSchedulingRequirements) {
 			final ExecutionVertexID executionVertexId = schedulingRequirements.getExecutionVertexId();
 			final SlotRequestId slotRequestId = new SlotRequestId();
@@ -96,11 +98,14 @@ public class DefaultExecutionSlotAllocator implements ExecutionSlotAllocator {
 
 			LOG.debug("Allocate slot with id {} for execution {}", slotRequestId, executionVertexId);
 
-			CompletableFuture<LogicalSlot> slotFuture = calculatePreferredLocations(
+			CompletableFuture<LogicalSlot> slotFuture =
+				// TODO_WU 计算 slot 本地性
+				calculatePreferredLocations(
 					executionVertexId,
 					schedulingRequirements.getPreferredLocations(),
 					inputsLocationsRetriever).thenCompose(
 							(Collection<TaskManagerLocation> preferredLocations) ->
+								// TODO_WU NormalSlotProviderStrategy
 								slotProviderStrategy.allocateSlot(
 									slotRequestId,
 									new ScheduledUnit(
@@ -127,6 +132,7 @@ public class DefaultExecutionSlotAllocator implements ExecutionSlotAllocator {
 						}
 					});
 
+			// TODO_WU 3、处理申请结果： 如果申请到，最终申请到的是： LogicalSlot
 			slotExecutionVertexAssignments.add(slotExecutionVertexAssignment);
 		}
 
@@ -235,6 +241,7 @@ public class DefaultExecutionSlotAllocator implements ExecutionSlotAllocator {
 			Collection<ExecutionVertexSchedulingRequirements> executionVertexSchedulingRequirements) {
 		return executionVertexSchedulingRequirements
 			.stream()
+			// TODO_WU 获得 AllocationID
 			.map(ExecutionVertexSchedulingRequirements::getPreviousAllocationId)
 			.filter(Objects::nonNull)
 			.collect(Collectors.toSet());

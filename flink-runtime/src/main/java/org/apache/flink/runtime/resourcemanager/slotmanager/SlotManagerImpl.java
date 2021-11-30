@@ -299,13 +299,16 @@ public class SlotManagerImpl implements SlotManager {
 	 */
 	@Override
 	public boolean registerSlotRequest(SlotRequest slotRequest) throws ResourceManagerException {
+		// TODO_WU 检测 SlotManagerImpl 是否已经启动
 		checkInit();
 
+		// TODO_WU 检测 slot申请 请求是否重复
 		if (checkDuplicateRequest(slotRequest.getAllocationId())) {
 			LOG.debug("Ignoring a duplicate slot request with allocation id {}.", slotRequest.getAllocationId());
 
 			return false;
 		} else {
+			// TODO_WU 请求封装
 			PendingSlotRequest pendingSlotRequest = new PendingSlotRequest(slotRequest);
 
 			pendingSlotRequests.put(slotRequest.getAllocationId(), pendingSlotRequest);
@@ -538,6 +541,7 @@ public class SlotManagerImpl implements SlotManager {
 	 * if there is no such slot available.
 	 */
 	private Optional<TaskManagerSlot> findMatchingSlot(ResourceProfile requestResourceProfile) {
+		// TODO_WU resource创建配置EVENLY_SPREAD_OUT_SLOTS_STRATEGY 指定slotMatchingStrategy
 		final Optional<TaskManagerSlot> optionalMatchingSlot = slotMatchingStrategy.findMatchingSlot(
 			requestResourceProfile,
 			freeSlots.values(),
@@ -680,6 +684,7 @@ public class SlotManagerImpl implements SlotManager {
 						// remove the pending slot request, since it has been completed
 						pendingSlotRequests.remove(pendingSlotRequest.getAllocationId());
 
+						// TODO_WU 更新状态，完成申请
 						slot.completeAllocation(allocationId, jobId);
 					} else {
 						// we first have to free the slot in order to set a new allocationId
@@ -748,9 +753,11 @@ public class SlotManagerImpl implements SlotManager {
 	 */
 	private void internalRequestSlot(PendingSlotRequest pendingSlotRequest) throws ResourceManagerException {
 		final ResourceProfile resourceProfile = pendingSlotRequest.getResourceProfile();
-
+		// TODO_WU 先从 Free 状态的 Slot 中，寻找合适的 Slot
 		OptionalConsumer.of(findMatchingSlot(resourceProfile))
+			// TODO_WU 返回结果中，包含 SlotID 和 TaskExecutorID 进行分配
 			.ifPresent(taskManagerSlot -> allocateSlot(taskManagerSlot, pendingSlotRequest))
+			// TODO_WU 已经没有 free 状态的 slot 使用待处理的任务管理器插槽满足待处理的插槽请求
 			.ifNotPresent(() -> fulfillPendingSlotRequestWithPendingTaskManagerSlot(pendingSlotRequest));
 	}
 
@@ -758,11 +765,14 @@ public class SlotManagerImpl implements SlotManager {
 		ResourceProfile resourceProfile = pendingSlotRequest.getResourceProfile();
 		Optional<PendingTaskManagerSlot> pendingTaskManagerSlotOptional = findFreeMatchingPendingTaskManagerSlot(resourceProfile);
 
+		// TODO_WU 如果 PendingTaskManagerSlot 中没有
 		if (!pendingTaskManagerSlotOptional.isPresent()) {
+			// TODO_WU 请求 ResourceManager 分配资源，通过 ResourceActions#allocateResource(ResourceProfile) 回调进行
 			pendingTaskManagerSlotOptional = allocateResource(resourceProfile);
 		}
 
 		OptionalConsumer.of(pendingTaskManagerSlotOptional)
+			// TODO_WU 将 PendingTaskManagerSlot 指派给 PendingSlotRequest
 			.ifPresent(pendingTaskManagerSlot -> assignPendingTaskManagerSlot(pendingSlotRequest, pendingTaskManagerSlot))
 			.ifNotPresent(() -> {
 				// request can not be fulfilled by any free slot or pending slot that can be allocated,
@@ -798,6 +808,7 @@ public class SlotManagerImpl implements SlotManager {
 		if (requestedSlots.isEmpty()) {
 			return Optional.empty();
 		} else {
+			// TODO_WU 申请到了新的task节点
 			final Iterator<ResourceProfile> slotIterator = requestedSlots.iterator();
 			final PendingTaskManagerSlot pendingTaskManagerSlot = new PendingTaskManagerSlot(slotIterator.next());
 			pendingSlots.put(pendingTaskManagerSlot.getTaskManagerSlotId(), pendingTaskManagerSlot);
@@ -824,8 +835,10 @@ public class SlotManagerImpl implements SlotManager {
 	 * @param pendingSlotRequest to allocate the given slot for
 	 */
 	private void allocateSlot(TaskManagerSlot taskManagerSlot, PendingSlotRequest pendingSlotRequest) {
+		// TODO_WU 状态校验
 		Preconditions.checkState(taskManagerSlot.getState() == TaskManagerSlot.State.FREE);
 
+		// TODO_WU 获取和 TaskManager 的链接 | gateway
 		TaskExecutorConnection taskExecutorConnection = taskManagerSlot.getTaskManagerConnection();
 		TaskExecutorGateway gateway = taskExecutorConnection.getTaskExecutorGateway();
 
@@ -834,6 +847,7 @@ public class SlotManagerImpl implements SlotManager {
 		final SlotID slotId = taskManagerSlot.getSlotId();
 		final InstanceID instanceID = taskManagerSlot.getInstanceId();
 
+		// TODO_WU TaskManagerSlot 状态变为 PENDING
 		taskManagerSlot.assignPendingSlotRequest(pendingSlotRequest);
 		pendingSlotRequest.setRequestFuture(completableFuture);
 
@@ -848,6 +862,7 @@ public class SlotManagerImpl implements SlotManager {
 
 		taskManagerRegistration.markUsed();
 
+		// TODO_WU 向 TaskExecutor 发起 RPC 请求申请 Slot
 		// RPC call to the task manager
 		CompletableFuture<Acknowledge> requestFuture = gateway.requestSlot(
 			slotId,
@@ -858,6 +873,7 @@ public class SlotManagerImpl implements SlotManager {
 			resourceManagerId,
 			taskManagerRequestTimeout);
 
+		// TODO_WU 发起向 TaskExecutor 申请 Slot 的 RPC 请求完成
 		requestFuture.whenComplete(
 			(Acknowledge acknowledge, Throwable throwable) -> {
 				if (acknowledge != null) {
@@ -870,19 +886,28 @@ public class SlotManagerImpl implements SlotManager {
 		completableFuture.whenCompleteAsync(
 			(Acknowledge acknowledge, Throwable throwable) -> {
 				try {
+					// TODO_WU 申请成功
 					if (acknowledge != null) {
+						// TODO_WU 取消 pendingSlotRequest，并更新 slot 状态 PENDING -> ALLOCATED
 						updateSlot(slotId, allocationId, pendingSlotRequest.getJobId());
-					} else {
+					}
+					// TODO_WU 申请失败
+					else {
 						if (throwable instanceof SlotOccupiedException) {
 							SlotOccupiedException exception = (SlotOccupiedException) throwable;
+							// TODO_WU slot 已经被占用了，更新状态
 							updateSlot(slotId, exception.getAllocationId(), exception.getJobId());
 						} else {
+							// TODO_WU 请求失败，将 pendingSlotRequest 从 TaskManagerSlot 中移除
 							removeSlotRequestFromSlot(slotId, allocationId);
 						}
 
+						// TODO_WU 报错 或者 取消
 						if (!(throwable instanceof CancellationException)) {
+							// TODO_WU slot request 请求失败，会进行重试
 							handleFailedSlotRequest(slotId, allocationId, throwable);
 						} else {
+							// TODO_WU 主动取消
 							LOG.debug("Slot allocation request {} has been cancelled.", allocationId, throwable);
 						}
 					}

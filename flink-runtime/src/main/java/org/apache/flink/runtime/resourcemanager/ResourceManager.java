@@ -318,6 +318,7 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 			jobMasterIdFuture,
 			(JobMasterGateway jobMasterGateway, JobMasterId leadingJobMasterId) -> {
 				if (Objects.equals(leadingJobMasterId, jobMasterId)) {
+					// TODO_WU 注册 JobMaster
 					return registerJobMasterInternal(
 						jobMasterGateway,
 						jobId,
@@ -335,6 +336,7 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 			},
 			getMainThreadExecutor());
 
+		// TODO_WU RegistrationResponse = JobMasterRegistrationSuccess
 		// handle exceptions which might have occurred in one of the futures inputs of combine
 		return registrationResponseFuture.handleAsync(
 			(RegistrationResponse registrationResponse, Throwable throwable) -> {
@@ -417,10 +419,12 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 			SlotRequest slotRequest,
 			final Time timeout) {
 
+		// TODO_WU 判断该 Job 是否已经注册过
 		JobID jobId = slotRequest.getJobId();
 		JobManagerRegistration jobManagerRegistration = jobManagerRegistrations.get(jobId);
 
 		if (null != jobManagerRegistration) {
+			// TODO_WU 判断申请 slot 的 JobMaster 和 注册的 Job 的 Master 地址是否一样 防止 JobMaster 迁移导致双份任务
 			if (Objects.equals(jobMasterId, jobManagerRegistration.getJobMasterId())) {
 				log.info("Request slot with profile {} for job {} with allocation id {}.",
 					slotRequest.getResourceProfile(),
@@ -613,6 +617,7 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 		JobID jobId,
 		String jobManagerAddress,
 		ResourceID jobManagerResourceId) {
+		// TODO_WU 校验是否已经注册
 		if (jobManagerRegistrations.containsKey(jobId)) {
 			JobManagerRegistration oldJobManagerRegistration = jobManagerRegistrations.get(jobId);
 
@@ -620,11 +625,13 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 				// same registration
 				log.debug("Job manager {}@{} was already registered.", jobMasterGateway.getFencingToken(), jobManagerAddress);
 			} else {
+				// TODO_WU 取消之前的 JobManager
 				// tell old job manager that he is no longer the job leader
 				disconnectJobManager(
 					oldJobManagerRegistration.getJobID(),
 					new Exception("New job leader for job " + jobId + " found."));
 
+				// TODO_WU 执行注册
 				JobManagerRegistration jobManagerRegistration = new JobManagerRegistration(
 					jobId,
 					jobManagerResourceId,
@@ -634,6 +641,7 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 			}
 		} else {
 			// new registration for the job
+			// TODO_WU 执行注册
 			JobManagerRegistration jobManagerRegistration = new JobManagerRegistration(
 				jobId,
 				jobManagerResourceId,
@@ -652,10 +660,12 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 
 			@Override
 			public void requestHeartbeat(ResourceID resourceID, Void payload) {
+				// TODO_WU 维持 JobMaster 和 ResourceManager 之间的心跳
 				jobMasterGateway.heartbeatFromResourceManager(resourceID);
 			}
 		});
 
+		// TODO_WU 返回注册成功的消息
 		return new JobMasterRegistrationSuccess(
 			getFencingToken(),
 			resourceId);
@@ -1071,6 +1081,7 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 		@Override
 		public Collection<ResourceProfile> allocateResource(ResourceProfile resourceProfile) {
 			validateRunsInMainThread();
+			// TODO_WU 开启新的 TaskExecutor standalone返回空，yarn/k8s等可能有返回值
 			return startNewWorker(resourceProfile);
 		}
 

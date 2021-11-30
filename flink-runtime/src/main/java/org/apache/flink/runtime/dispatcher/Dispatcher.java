@@ -270,14 +270,18 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
 		log.info("Received JobGraph submission {} ({}).", jobGraph.getJobID(), jobGraph.getName());
 
 		try {
+			// TODO_WU 判断是否jobid是否已经提交过
 			if (isDuplicateJob(jobGraph.getJobID())) {
 				return FutureUtils.completedExceptionally(
 					new DuplicateJobSubmissionException(jobGraph.getJobID()));
-			} else if (isPartialResourceConfigured(jobGraph)) {
+			}
+			// TODO_WU JobGraph中不支持部分资源配置，因此要么全部节点都配置资源，要么全不配置
+			else if (isPartialResourceConfigured(jobGraph)) {
 				return FutureUtils.completedExceptionally(
 					new JobSubmissionException(jobGraph.getJobID(), "Currently jobs is not supported if parts of the vertices have " +
 							"resources configured. The limitation will be removed in future versions."));
 			} else {
+				// TODO_WU 提交任务
 				return internalSubmitJob(jobGraph);
 			}
 		} catch (FlinkException e) {
@@ -326,11 +330,16 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
 	private CompletableFuture<Acknowledge> internalSubmitJob(JobGraph jobGraph) {
 		log.info("Submitting job {} ({}).", jobGraph.getJobID(), jobGraph.getName());
 
-		final CompletableFuture<Acknowledge> persistAndRunFuture = waitForTerminatingJobManager(jobGraph.getJobID(), jobGraph, this::persistAndRunJob)
+		// TODO_WU 异步提交执行
+		final CompletableFuture<Acknowledge> persistAndRunFuture = waitForTerminatingJobManager(
+			jobGraph.getJobID(), jobGraph,
+			// TODO_WU 执行任务
+			this::persistAndRunJob)
 			.thenApply(ignored -> Acknowledge.get());
 
 		return persistAndRunFuture.handleAsync((acknowledge, throwable) -> {
 			if (throwable != null) {
+				// TODO_WU 异常时对job清理
 				cleanUpJobData(jobGraph.getJobID(), true);
 
 				final Throwable strippedThrowable = ExceptionUtils.stripCompletionException(throwable);
@@ -338,18 +347,21 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
 				throw new CompletionException(
 					new JobSubmissionException(jobGraph.getJobID(), "Failed to submit job.", strippedThrowable));
 			} else {
+				// TODO_WU 成功返回acknowledge
 				return acknowledge;
 			}
 		}, getRpcService().getExecutor());
 	}
 
 	private CompletableFuture<Void> persistAndRunJob(JobGraph jobGraph) throws Exception {
+		// TODO_WU 持久化 JobGraph 如果实现ZK的HA，则JobGraph记录到ZooKeeperJobGraphStore
 		jobGraphWriter.putJobGraph(jobGraph);
-
+		// TODO_WU 执行 JobGraph
 		final CompletableFuture<Void> runJobFuture = runJob(jobGraph);
 
 		return runJobFuture.whenComplete(BiConsumerWithException.unchecked((Object ignored, Throwable throwable) -> {
 			if (throwable != null) {
+				// TODO_WU 异常时从 jobGraphWriter 移除job
 				jobGraphWriter.removeJobGraph(jobGraph.getJobID());
 			}
 		}));
@@ -358,12 +370,16 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
 	private CompletableFuture<Void> runJob(JobGraph jobGraph) {
 		Preconditions.checkState(!jobManagerRunnerFutures.containsKey(jobGraph.getJobID()));
 
+		// TODO_WU 创建 JobManagerRunner
 		final CompletableFuture<JobManagerRunner> jobManagerRunnerFuture = createJobManagerRunner(jobGraph);
 
 		jobManagerRunnerFutures.put(jobGraph.getJobID(), jobManagerRunnerFuture);
 
+
 		return jobManagerRunnerFuture
-			.thenApply(FunctionUtils.uncheckedFunction(this::startJobManagerRunner))
+			.thenApply(FunctionUtils.uncheckedFunction(
+				// TODO_WU 启动 JobManagerRunner
+				this::startJobManagerRunner))
 			.thenApply(FunctionUtils.nullFn())
 			.whenCompleteAsync(
 				(ignored, throwable) -> {
@@ -421,6 +437,7 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
 					return null;
 				}, getMainThreadExecutor()));
 
+		// TODO_WU 启动jobManagerRunner
 		jobManagerRunner.start();
 
 		return jobManagerRunner;

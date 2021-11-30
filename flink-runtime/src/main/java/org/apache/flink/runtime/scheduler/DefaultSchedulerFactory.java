@@ -67,7 +67,9 @@ public class DefaultSchedulerFactory implements SchedulerNGFactory {
 			final ShuffleMaster<?> shuffleMaster,
 			final JobMasterPartitionTracker partitionTracker) throws Exception {
 
+		//TODO_WU EagerSchedulingStrategy将ExecutionJobVertex中所有的Task实例立即拉起执行，适用于Streaming类型作业
 		final SchedulingStrategyFactory schedulingStrategyFactory = createSchedulingStrategyFactory(jobGraph.getScheduleMode());
+		//TODO_WU Job 重启策略
 		final RestartBackoffTimeStrategy restartBackoffTimeStrategy = RestartBackoffTimeStrategyFactoryLoader
 			.createRestartBackoffTimeStrategyFactory(
 				jobGraph
@@ -79,6 +81,7 @@ public class DefaultSchedulerFactory implements SchedulerNGFactory {
 			.create();
 		log.info("Using restart back off time strategy {} for {} ({}).", restartBackoffTimeStrategy, jobGraph.getName(), jobGraph.getJobID());
 
+		// TODO_WU 构造一个NormalSlotProviderStrategy
 		final SlotProviderStrategy slotProviderStrategy = SlotProviderStrategy.from(
 			jobGraph.getScheduleMode(),
 			slotProvider,

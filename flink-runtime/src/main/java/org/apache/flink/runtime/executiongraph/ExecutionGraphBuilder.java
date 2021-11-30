@@ -157,6 +157,7 @@ public class ExecutionGraphBuilder {
 		final int maxPriorAttemptsHistoryLength =
 				jobManagerConfig.getInteger(JobManagerOptions.MAX_ATTEMPTS_HISTORY_SIZE);
 
+		// TODO_WU 释放 IntermediateResultPartition 的策略: RegionPartitionReleaseStrategy
 		final PartitionReleaseStrategy.Factory partitionReleaseStrategyFactory =
 			PartitionReleaseStrategyFactoryLoader.loadPartitionReleaseStrategyFactory(jobManagerConfig);
 
@@ -164,6 +165,7 @@ public class ExecutionGraphBuilder {
 		final ExecutionGraph executionGraph;
 		try {
 			executionGraph = (prior != null) ? prior :
+				// TODO_WU 创建一个空的ExecutionGraph
 				new ExecutionGraph(
 					jobInformation,
 					futureExecutor,
@@ -187,7 +189,9 @@ public class ExecutionGraphBuilder {
 		// set the basic properties
 
 		try {
-			executionGraph.setJsonPlan(JsonPlanGenerator.generatePlan(jobGraph));
+			executionGraph.setJsonPlan(
+				// TODO_WU jobgraph -> JsonPlan 即web页面展示的jobgraph图
+				JsonPlanGenerator.generatePlan(jobGraph));
 		}
 		catch (Throwable t) {
 			log.warn("Cannot create JSON plan for job", t);
@@ -201,6 +205,7 @@ public class ExecutionGraphBuilder {
 		final long initMasterStart = System.nanoTime();
 		log.info("Running initialization on master for job {} ({}).", jobName, jobId);
 
+		// TODO_WU 遍历每个 JobVertex 执行初始化
 		for (JobVertex vertex : jobGraph.getVertices()) {
 			String executableClass = vertex.getInvokableClassName();
 			if (executableClass == null || executableClass.isEmpty()) {

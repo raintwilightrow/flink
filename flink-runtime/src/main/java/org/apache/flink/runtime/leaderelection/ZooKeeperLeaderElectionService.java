@@ -33,6 +33,7 @@ import org.apache.curator.framework.state.ConnectionState;
 import org.apache.curator.framework.state.ConnectionStateListener;
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.KeeperException;
+import org.apache.zookeeper.ZooKeeper;
 import org.apache.zookeeper.data.Stat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -109,6 +110,8 @@ public class ZooKeeperLeaderElectionService implements LeaderElectionService, Le
 	}
 
 	/**
+	 * TODO_WU 选举如果成功 {@link #isLeader()}，否则{@link #notLeader()} 这是 ZooKeeper 的 API 框架 cruator 的机制
+	 *
 	 * Returns the current leader session ID or null, if the contender is not the leader.
 	 *
 	 * @return The last leader session ID or null, if the contender is not the leader
@@ -116,6 +119,7 @@ public class ZooKeeperLeaderElectionService implements LeaderElectionService, Le
 	public UUID getLeaderSessionID() {
 		return confirmedLeaderSessionID;
 	}
+
 
 	@Override
 	public void start(LeaderContender contender) throws Exception {
@@ -133,6 +137,7 @@ public class ZooKeeperLeaderElectionService implements LeaderElectionService, Le
 			leaderLatch.addListener(this);
 			leaderLatch.start();
 
+			// TODO_WU 注册监听器
 			cache.getListenable().addListener(this);
 			cache.start();
 
@@ -232,6 +237,15 @@ public class ZooKeeperLeaderElectionService implements LeaderElectionService, Le
 						leaderContender.getDescription(),
 						issuedLeaderSessionID);
 				}
+
+				/**
+				 * TODO_WU 分配 LeaderShip
+				 *  leaderContender = JobManagerRunnerImpl
+				 *  leaderContender = ResourceManager
+				 *  leaderContender = DefaultDispatcherRunner
+				 *  leaderContender = WebMonitorEndpoint
+				 *
+				 */
 
 				leaderContender.grantLeadership(issuedLeaderSessionID);
 			} else {
