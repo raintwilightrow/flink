@@ -473,6 +473,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 
 			// let the task do its work
 			isRunning = true;
+			// TODO_WU 执行这句代码的时候，还是在 Task 所在的那个线程中
 			runMailboxLoop();
 
 			// if this left the run() method cleanly despite the fact that this was canceled,
@@ -490,6 +491,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 	}
 
 	private void runMailboxLoop() throws Exception {
+		// TODO_WU 通过 MailboxProcessor 来轮询 MailBox 处理 Mail
 		mailboxProcessor.runMailboxLoop();
 	}
 

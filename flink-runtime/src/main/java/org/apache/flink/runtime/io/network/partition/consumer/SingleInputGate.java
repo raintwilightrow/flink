@@ -212,6 +212,7 @@ public class SingleInputGate extends InputGate {
 		// assign exclusive buffers to input channels directly and use the rest for floating buffers
 		assignExclusiveSegments();
 
+		// TODO_WU BufferPool 用于管理 MemorySegement
 		BufferPool bufferPool = bufferPoolFactory.get();
 		setBufferPool(bufferPool);
 

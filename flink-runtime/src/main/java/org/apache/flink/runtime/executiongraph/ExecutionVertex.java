@@ -704,6 +704,7 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 	}
 
 	public void deploy() throws JobException {
+		// TODO_WU 每执行一次 ExecutionVertex ，就封装一个 Execution 对象，保证执行失败后重试能区分
 		currentExecution.deploy();
 	}
 

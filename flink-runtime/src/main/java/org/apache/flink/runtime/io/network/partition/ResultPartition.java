@@ -59,6 +59,7 @@ import static org.apache.flink.util.Preconditions.checkState;
  *
  * <h2>Life-cycle</h2>
  *
+ * // TODO_WU 每个结果分区的生命周期都有三个（可能是重叠的）阶段： Produce Consume Release
  * <p>The life-cycle of each result partition has three (possibly overlapping) phases:
  * <ol>
  * <li><strong>Produce</strong>: </li>
@@ -69,6 +70,9 @@ import static org.apache.flink.util.Preconditions.checkState;
  * <h2>Buffer management</h2>
  *
  * <h2>State management</h2>
+ *
+ * // TODO_WU 代表由一个 Task 的生成的数据，和 ExecutionGraph 中的 IntermediateResultPartition 一一对应
+ * // TODO_WU 一个 ResultPartition 和 一个 ResultPartitionWriter 关联
  */
 public class ResultPartition implements ResultPartitionWriter, BufferPoolOwner {
 
@@ -137,10 +141,13 @@ public class ResultPartition implements ResultPartitionWriter, BufferPoolOwner {
 		checkState(this.bufferPool == null, "Bug in result partition setup logic: Already registered buffer pool.");
 
 		BufferPool bufferPool = checkNotNull(bufferPoolFactory.apply(this));
+		// TODO_WU MemorySegment > Subpartition
 		checkArgument(bufferPool.getNumberOfRequiredMemorySegments() >= getNumberOfSubpartitions(),
 			"Bug in result partition setup logic: Buffer pool has not enough guaranteed buffers for this result partition.");
 
 		this.bufferPool = bufferPool;
+		// TODO_WU 注册 ResultPartition 启动好了之后，会注册在 ResultPartitionManager 中
+		// TODO_WU ResultPartition 可能包含多个 ResultSubpartition
 		partitionManager.registerResultPartition(this);
 	}
 

@@ -183,6 +183,7 @@ public class MailboxProcessor implements Closeable {
 
 		final MailboxController defaultActionContext = new MailboxController(this);
 
+		// TODO_WU 正式工作 1.11 优化
 		while (processMail(localMailbox)) {
 			mailboxDefaultAction.runDefaultAction(defaultActionContext); // lock is acquired inside default action as needed
 		}

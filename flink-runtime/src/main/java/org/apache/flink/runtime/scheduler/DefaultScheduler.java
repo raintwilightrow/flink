@@ -298,13 +298,15 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
 		final Map<ExecutionVertexID, ExecutionVertexVersion> requiredVersionByVertex =
 			executionVertexVersioner.recordVertexModifications(verticesToDeploy);
 
-		//TODO_WU 更改 ExectionVertex 状态
+		// TODO_WU 更改 ExectionVertex 状态
 		transitionToScheduled(verticesToDeploy);
 
 
+		// TODO_WU 申请ExecutionVertex-LogicalSlot
 		final List<SlotExecutionVertexAssignment> slotExecutionVertexAssignments =
 			allocateSlots(executionVertexDeploymentOptions);
 
+		// TODO_WU 为每个ExecutionVertex配置一个deploymentHandle
 		final List<DeploymentHandle> deploymentHandles = createDeploymentHandles(
 			requiredVersionByVertex,
 			deploymentOptionsByVertex,
@@ -313,6 +315,7 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
 		if (isDeployIndividually()) {
 			deployIndividually(deploymentHandles);
 		} else {
+			// TODO_WU 部署运行
 			waitForAllSlotsAndDeploy(deploymentHandles);
 		}
 	}
@@ -382,7 +385,10 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
 
 	private void waitForAllSlotsAndDeploy(final List<DeploymentHandle> deploymentHandles) {
 		FutureUtils.assertNoException(
-			assignAllResources(deploymentHandles).handle(deployAll(deploymentHandles)));
+			// TODO_WU 把 每个 DeploymentHandle 去分配资源给自己对应的 ExecutionVertex
+			assignAllResources(deploymentHandles).handle(
+				// TODO_WU 执行任务部署
+				deployAll(deploymentHandles)));
 	}
 
 	private CompletableFuture<Void> assignAllResources(final List<DeploymentHandle> deploymentHandles) {
@@ -391,6 +397,7 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
 			final CompletableFuture<Void> slotAssigned = deploymentHandle
 				.getSlotExecutionVertexAssignment()
 				.getLogicalSlotFuture()
+				// TODO_WU 调用 assignResourceOrHandleError 来获取 申请到的 slot,有可能获取不到
 				.handle(assignResourceOrHandleError(deploymentHandle));
 			slotAssignedFutures.add(slotAssigned);
 		}
@@ -401,12 +408,15 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
 		return (ignored, throwable) -> {
 			propagateIfNonNull(throwable);
 			for (final DeploymentHandle deploymentHandle : deploymentHandles) {
+				// TODO_WU 获取 slot 申请消息
 				final SlotExecutionVertexAssignment slotExecutionVertexAssignment = deploymentHandle.getSlotExecutionVertexAssignment();
 				final CompletableFuture<LogicalSlot> slotAssigned = slotExecutionVertexAssignment.getLogicalSlotFuture();
 				checkState(slotAssigned.isDone());
 
 				FutureUtils.assertNoException(
-					slotAssigned.handle(deployOrHandleError(deploymentHandle)));
+					slotAssigned.handle(
+						// TODO_WU 执行或处理异常
+						deployOrHandleError(deploymentHandle)));
 			}
 			return null;
 		};
@@ -435,7 +445,9 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
 				final boolean sendScheduleOrUpdateConsumerMessage = deploymentHandle.getDeploymentOption().sendScheduleOrUpdateConsumerMessage();
 				executionVertex
 					.getCurrentExecutionAttempt()
+					// TODO_WU 注册输入分区
 					.registerProducedPartitions(logicalSlot.getTaskManagerLocation(), sendScheduleOrUpdateConsumerMessage);
+				// TODO_WU 分配 slot 资源
 				executionVertex.tryAssignResource(logicalSlot);
 			} else {
 				handleTaskDeploymentFailure(executionVertexId, maybeWrapWithNoResourceAvailableException(throwable));
@@ -476,6 +488,7 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
 			}
 
 			if (throwable == null) {
+				// TODO_WU 部署 Task 一个 ExecutionVertex 对应到要启动一个 Task
 				deployTaskSafe(executionVertexId);
 			} else {
 				handleTaskDeploymentFailure(executionVertexId, throwable);

@@ -686,6 +686,7 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 	 * @throws JobException if the execution cannot be deployed to the assigned resource
 	 */
 	public void deploy() throws JobException {
+		// TODO_WU 确认JobMasterMainThread状态为Running
 		assertRunningInJobMasterMainThread();
 
 		final LogicalSlot slot  = assignedResource;
@@ -714,6 +715,7 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 			throw new IllegalStateException("The vertex must be in CREATED or SCHEDULED state to be deployed. Found state " + previous);
 		}
 
+		// TODO_WU 判断当前Execution分配的Slot资源的有效性
 		if (this != slot.getPayload()) {
 			throw new IllegalStateException(
 				String.format("The execution %s has not been assigned to the assigned slot.", this));
@@ -732,6 +734,7 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 						attemptNumber, getAssignedResourceLocation()));
 			}
 
+			// TODO_WU 创建TaskDeploymentDescriptor，用于将Task部署到TaskManager
 			final TaskDeploymentDescriptor deployment = TaskDeploymentDescriptorFactory
 				.fromExecutionVertex(vertex, attemptNumber)
 				.createDeploymentDescriptor(
@@ -750,7 +753,9 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 
 			// We run the submission in the future executor so that the serialization of large TDDs does not block
 			// the main thread and sync back to the main thread once submission is completed.
-			CompletableFuture.supplyAsync(() -> taskManagerGateway.submitTask(deployment, rpcTimeout), executor)
+			CompletableFuture.supplyAsync(() -> taskManagerGateway.
+				// TODO_WU 调用taskManagerGateway.submit()方法提交Deployment对象到TaskExecutor中
+				submitTask(deployment, rpcTimeout), executor)
 				.thenCompose(Function.identity())
 				.whenCompleteAsync(
 					(ack, failure) -> {

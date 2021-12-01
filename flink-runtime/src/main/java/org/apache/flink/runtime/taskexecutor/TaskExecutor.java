@@ -466,6 +466,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 
 		try {
 			final JobID jobId = tdd.getJobId();
+			// TODO_WU 检查和 ResourceManager 的链接是否为空
 			final JobManagerConnection jobManagerConnection = jobManagerTable.get(jobId);
 
 			if (jobManagerConnection == null) {
@@ -476,6 +477,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 				throw new TaskSubmissionException(message);
 			}
 
+			// TODO_WU 校验 jobMasterID, 防止任务被错误提交
 			if (!Objects.equals(jobManagerConnection.getJobMasterId(), jobMasterId)) {
 				final String message = "Rejecting the task submission because the job manager leader id " +
 					jobMasterId + " does not match the expected job manager leader id " +
@@ -485,6 +487,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 				throw new TaskSubmissionException(message);
 			}
 
+			// TODO_WU 当前节点是否已有 Slot 申请到了
 			if (!taskSlotTable.tryMarkSlotActive(jobId, tdd.getAllocationId())) {
 				final String message = "No task slot allocated for job ID " + jobId +
 					" and allocation ID " + tdd.getAllocationId() + '.';
@@ -492,6 +495,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 				throw new TaskSubmissionException(message);
 			}
 
+			// TODO_WU 重新整合卸载的数据
 			// re-integrate offloaded data:
 			try {
 				tdd.loadBigData(blobCacheService.getPermanentBlobService());
@@ -499,6 +503,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 				throw new TaskSubmissionException("Could not re-integrate offloaded TaskDeploymentDescriptor data.", e);
 			}
 
+			// TODO_WU 反序列化获取 Job 和 Task 信息
 			// deserialize the pre-serialized information
 			final JobInformation jobInformation;
 			final TaskInformation taskInformation;
@@ -509,6 +514,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 				throw new TaskSubmissionException("Could not deserialize the job or task information.", e);
 			}
 
+			// TODO_WU 如果 JobID 冲突了，拒绝处理
 			if (!jobId.equals(jobInformation.getJobId())) {
 				throw new TaskSubmissionException(
 					"Inconsistent job ID information inside TaskDeploymentDescriptor (" +
@@ -524,6 +530,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 				tdd.getSubtaskIndex(),
 				tdd.getAttemptNumber());
 
+			// TODO_WU RpcInputSplitProvider 输入流
 			InputSplitProvider inputSplitProvider = new RpcInputSplitProvider(
 				jobManagerConnection.getJobManagerGateway(),
 				taskInformation.getJobVertexId(),
@@ -544,8 +551,10 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 				taskInformation.getJobVertexId(),
 				tdd.getSubtaskIndex());
 
+			// TODO_WU 启动任务的时候需要的待恢复的数据
 			final JobManagerTaskRestore taskRestore = tdd.getTaskRestore();
 
+			// TODO_WU 初始化 TaskStateManagerImpl Task 状态管理
 			final TaskStateManager taskStateManager = new TaskStateManagerImpl(
 				jobId,
 				tdd.getExecutionAttemptId(),
@@ -553,6 +562,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 				taskRestore,
 				checkpointResponder);
 
+			// TODO_WU 获取 MemoryManager
 			MemoryManager memoryManager;
 			try {
 				memoryManager = taskSlotTable.getTaskMemoryManager(tdd.getAllocationId());
@@ -560,6 +570,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 				throw new TaskSubmissionException("Could not submit task.", e);
 			}
 
+			// TODO_WU 把 TDD 转变成 Task 内部会初始化一个执行线程 一个Task 是线程级别的执行粒度
 			Task task = new Task(
 				jobInformation,
 				taskInformation,
@@ -588,6 +599,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 				taskMetricGroup,
 				resultPartitionConsumableNotifier,
 				partitionStateChecker,
+				// TODO_WU 初始化一个线程
 				getRpcService().getExecutor());
 
 			taskMetricGroup.gauge(MetricNames.IS_BACKPRESSURED, task::isBackPressured);
@@ -597,14 +609,17 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 			boolean taskAdded;
 
 			try {
+				// TODO_WU 注册 Task
 				taskAdded = taskSlotTable.addTask(task);
 			} catch (SlotNotFoundException | SlotNotActiveException e) {
 				throw new TaskSubmissionException("Could not submit task.", e);
 			}
 
 			if (taskAdded) {
+				// TODO_WU 如果注册成功，则通过一个线程来运行 Task
 				task.startTaskThread();
 
+				// TODO_WU 设置ResultPartition
 				setupResultPartitionBookkeeping(
 					tdd.getJobId(),
 					tdd.getProducedPartitions(),

@@ -310,6 +310,7 @@ public class Task implements Runnable, TaskSlotPayload, TaskActions, PartitionPr
 		Preconditions.checkArgument(0 <= attemptNumber, "The attempt number must be positive.");
 		Preconditions.checkArgument(0 <= targetSlotNumber, "The target slot number must be positive.");
 
+		// TODO_WU 当前任务的 Task 信息
 		this.taskInfo = new TaskInfo(
 				taskInformation.getTaskName(),
 				taskInformation.getMaxNumberOfSubtaks(),
@@ -361,14 +362,17 @@ public class Task implements Runnable, TaskSlotPayload, TaskActions, PartitionPr
 
 		final String taskNameWithSubtaskAndId = taskNameWithSubtask + " (" + executionId + ')';
 
+		// TODO_WU 创建 ShuffleIOOwnerContext 在 TaskExecutor 初始化的时候，就已经创建好了
 		final ShuffleIOOwnerContext taskShuffleContext = shuffleEnvironment
 			.createShuffleIOOwnerContext(taskNameWithSubtaskAndId, executionId, metrics.getIOMetricGroup());
 
+		// TODO_WU ResultPartition|ResultSubPartition
 		// produced intermediate result partitions
 		final ResultPartitionWriter[] resultPartitionWriters = shuffleEnvironment.createResultPartitionWriters(
 			taskShuffleContext,
 			resultPartitionDeploymentDescriptors).toArray(new ResultPartitionWriter[] {});
 
+		// TODO_WU 对上述生成的 ResultPartition 再根据是否需要发回反馈信息等，进行进一步对象的处理
 		this.consumableNotifyingPartitionWriters = ConsumableNotifyingResultPartitionWriterDecorator.decorate(
 			resultPartitionDeploymentDescriptors,
 			resultPartitionWriters,
@@ -376,6 +380,7 @@ public class Task implements Runnable, TaskSlotPayload, TaskActions, PartitionPr
 			jobId,
 			resultPartitionConsumableNotifier);
 
+		// TODO_WU 初始化 InputGate
 		// consumed intermediate result partitions
 		final InputGate[] gates = shuffleEnvironment.createInputGates(
 			taskShuffleContext,
@@ -521,6 +526,7 @@ public class Task implements Runnable, TaskSlotPayload, TaskActions, PartitionPr
 	 * Starts the task's thread.
 	 */
 	public void startTaskThread() {
+		// TODO_WU 调用当前类的 run() 方法
 		executingThread.start();
 	}
 
@@ -540,6 +546,7 @@ public class Task implements Runnable, TaskSlotPayload, TaskActions, PartitionPr
 		// ----------------------------
 		//  Initial State transition
 		// ----------------------------
+		// TODO_WU 能把 Task 的状态改成 DEPLOYING 的时候，就退出这个 while(true) 循环
 		while (true) {
 			ExecutionState current = this.executionState;
 			if (current == ExecutionState.CREATED) {
@@ -585,19 +592,24 @@ public class Task implements Runnable, TaskSlotPayload, TaskActions, PartitionPr
 			//  check for canceling as a shortcut
 			// ----------------------------
 
+			// TODO_WU 激活当前Task线程的安全网
 			// activate safety net for task thread
 			LOG.info("Creating FileSystem stream leak safety net for task {}", this);
 			FileSystemSafetyNet.initializeSafetyNetForThread();
 
+			// TODO_WU 在blobService中注册当前的JobId
 			blobService.getPermanentBlobService().registerJob(jobId);
 
 			// first of all, get a user-code classloader
 			// this may involve downloading the job's JAR files and/or classes
 			LOG.info("Loading JAR files for task {}.", this);
 
+			// TODO_WU 为当前Task加载依赖JAR包，然后创建UserCodeClassLoader
 			userCodeClassLoader = createUserCodeClassloader();
+			// TODO_WU 反序列化ExecutionConfig 从 ExecutionConfig 中可以得到所有算子相关的信息
 			final ExecutionConfig executionConfig = serializedExecutionConfig.deserializeValue(userCodeClassLoader);
 
+			// TODO_WU 获取taskCancellationInterval和taskCancellationTimeout参数
 			if (executionConfig.getTaskCancellationInterval() >= 0) {
 				// override task cancellation interval from Flink config if set in ExecutionConfig
 				taskCancellationInterval = executionConfig.getTaskCancellationInterval();
@@ -621,12 +633,15 @@ public class Task implements Runnable, TaskSlotPayload, TaskActions, PartitionPr
 
 			LOG.info("Registering task at network: {}.", this);
 
+			// TODO_WU 启动 ResultPartitionWriter 和 InputGate 本质是初始化 BufferPool
 			setupPartitionsAndGates(consumableNotifyingPartitionWriters, inputGates);
 
+			// TODO_WU 注册 ResultPartitionWriter
 			for (ResultPartitionWriter partitionWriter : consumableNotifyingPartitionWriters) {
 				taskEventDispatcher.registerPartition(partitionWriter.getPartitionId());
 			}
 
+			// TODO_WU 为分布式缓存启动文件的后台复制
 			// next, kick off the background copying of files for the distributed cache
 			try {
 				for (Map.Entry<String, DistributedCache.DistributedCacheEntry> entry :
@@ -651,6 +666,7 @@ public class Task implements Runnable, TaskSlotPayload, TaskActions, PartitionPr
 
 			TaskKvStateRegistry kvStateRegistry = kvStateService.createKvStateTaskRegistry(jobId, getJobVertexId());
 
+			// TODO_WU 为Task创建RuntimeEnvironment执行环境
 			Environment env = new RuntimeEnvironment(
 				jobId,
 				vertexId,
@@ -682,6 +698,7 @@ public class Task implements Runnable, TaskSlotPayload, TaskActions, PartitionPr
 			// so that it is available to the invokable during its entire lifetime.
 			executingThread.setContextClassLoader(userCodeClassLoader);
 
+			// TODO_WU 构建jobgraph时指定head operator的InvokableClassName @StreamingJobGraphGenerator.createChain
 			// now load and instantiate the task's invokable code
 			invokable = loadAndInstantiateInvokable(userCodeClassLoader, nameOfInvokableClass, env);
 
@@ -693,6 +710,7 @@ public class Task implements Runnable, TaskSlotPayload, TaskActions, PartitionPr
 			// by the time we switched to running.
 			this.invokable = invokable;
 
+			// TODO_WU 由 DEPLOYING 状态改成： RUNNING
 			// switch to the RUNNING state, if that fails, we have been canceled/failed in the meantime
 			if (!transitionState(ExecutionState.DEPLOYING, ExecutionState.RUNNING)) {
 				throw new CancelTaskException();
@@ -1280,6 +1298,7 @@ public class Task implements Runnable, TaskSlotPayload, TaskActions, PartitionPr
 		String className,
 		Environment environment) throws Throwable {
 
+		// TODO_WU 通过反射方式创建invokableClass
 		final Class<? extends AbstractInvokable> invokableClass;
 		try {
 			invokableClass = Class.forName(className, true, classLoader)
@@ -1290,12 +1309,15 @@ public class Task implements Runnable, TaskSlotPayload, TaskActions, PartitionPr
 
 		Constructor<? extends AbstractInvokable> statelessCtor;
 
+		// TODO_WU 调用 AbstractInvokable 的带一个 RuntimeEnvironment 参数的构造
 		try {
+			// TODO_WU 创建invokableClass构造器
 			statelessCtor = invokableClass.getConstructor(Environment.class);
 		} catch (NoSuchMethodException ee) {
 			throw new FlinkException("Task misses proper constructor", ee);
 		}
 
+		// TODO_WU 通过构造器实例化invokableClass对象并返回
 		// instantiate the class
 		try {
 			//noinspection ConstantConditions  --> cannot happen
