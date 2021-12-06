@@ -601,6 +601,7 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 		assertRunningInJobMasterMainThread();
 
 		return FutureUtils.thenApplyAsyncIfNotDone(
+			// TODO_WU 注册输入分区
 			registerProducedPartitions(vertex, location, attemptId, sendScheduleOrUpdateConsumersMessage),
 			vertex.getExecutionGraph().getJobMasterMainThreadExecutor(),
 			producedPartitionsCache -> {
@@ -637,13 +638,17 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 			ExecutionAttemptID attemptId,
 			boolean sendScheduleOrUpdateConsumersMessage) {
 
+		// TODO_WU 创建ProducerDescriptor
 		ProducerDescriptor producerDescriptor = ProducerDescriptor.create(location, attemptId);
 
+		// TODO_WU 获取当前节点的partition信息
 		Collection<IntermediateResultPartition> partitions = vertex.getProducedPartitions().values();
 		Collection<CompletableFuture<ResultPartitionDeploymentDescriptor>> partitionRegistrations =
 			new ArrayList<>(partitions.size());
 
+		// TODO_WU 针对 JobGraph 中的每个 IntermediateResultPartition 将来都会创建一个 ResultPartitioin
 		for (IntermediateResultPartition partition : partitions) {
+			// TODO_WU 构造一个 PartitionDescriptor 对象，主要用于创建 ResultPartition
 			PartitionDescriptor partitionDescriptor = PartitionDescriptor.from(partition);
 			int maxParallelism = getPartitionMaxParallelism(partition);
 			CompletableFuture<? extends ShuffleDescriptor> shuffleDescriptorFuture = vertex
@@ -654,6 +659,7 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 			// temporary hack; the scheduler does not handle incomplete futures properly
 			Preconditions.checkState(shuffleDescriptorFuture.isDone(), "ShuffleDescriptor future is incomplete.");
 
+			// TODO_WU 创建 ResultPartitionDeploymentDescriptor
 			CompletableFuture<ResultPartitionDeploymentDescriptor> partitionRegistration = shuffleDescriptorFuture
 				.thenApply(shuffleDescriptor -> new ResultPartitionDeploymentDescriptor(
 					partitionDescriptor,
@@ -664,6 +670,7 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 		}
 
 		return FutureUtils.combineAll(partitionRegistrations).thenApply(rpdds -> {
+			// TODO_WU 转化格式
 			Map<IntermediateResultPartitionID, ResultPartitionDeploymentDescriptor> producedPartitions =
 				new LinkedHashMap<>(partitions.size());
 			rpdds.forEach(rpdd -> producedPartitions.put(rpdd.getPartitionId(), rpdd));
@@ -672,6 +679,7 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 	}
 
 	private static int getPartitionMaxParallelism(IntermediateResultPartition partition) {
+		// TODO_WU 获取下游的消费者个数
 		final List<List<ExecutionEdge>> consumers = partition.getConsumers();
 		Preconditions.checkArgument(!consumers.isEmpty(), "Currently there has to be exactly one consumer in real jobs");
 		List<ExecutionEdge> consumer = consumers.get(0);

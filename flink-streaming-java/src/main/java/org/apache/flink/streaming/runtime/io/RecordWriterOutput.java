@@ -86,6 +86,7 @@ public class RecordWriterOutput<OUT> implements OperatorChain.WatermarkGaugeExpo
 			return;
 		}
 
+		// TODO_WU 进行 record 输出
 		pushToRecordWriter(record);
 	}
 
@@ -101,9 +102,11 @@ public class RecordWriterOutput<OUT> implements OperatorChain.WatermarkGaugeExpo
 	}
 
 	private <X> void pushToRecordWriter(StreamRecord<X> record) {
+		// TODO_WU 设置数据
 		serializationDelegate.setInstance(record);
 
 		try {
+			// TODO_WU 发送
 			recordWriter.emit(serializationDelegate);
 		}
 		catch (Exception e) {
@@ -149,6 +152,7 @@ public class RecordWriterOutput<OUT> implements OperatorChain.WatermarkGaugeExpo
 	}
 
 	public void broadcastEvent(AbstractEvent event) throws IOException {
+		// TODO_WU 广播
 		recordWriter.broadcastEvent(event);
 	}
 

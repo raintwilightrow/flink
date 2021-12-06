@@ -47,6 +47,7 @@ public class RecordWriterBuilder<T extends IOReadableWritable> {
 	}
 
 	public RecordWriter<T> build(ResultPartitionWriter writer) {
+		// TODO_WU ChannelSelector<T> selector ChannelSelector impl by StreamPartitioner
 		if (selector.isBroadcast()) {
 			return new BroadcastRecordWriter<>(writer, timeout, taskName);
 		} else {

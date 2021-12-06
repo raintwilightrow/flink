@@ -58,6 +58,7 @@ public class NettyShuffleServiceFactory implements ShuffleServiceFactory<NettySh
 	@Override
 	public NettyShuffleEnvironment createShuffleEnvironment(ShuffleEnvironmentContext shuffleEnvironmentContext) {
 		checkNotNull(shuffleEnvironmentContext);
+		// TODO_WU 获取 NettyShuffleEnvironmentConfiguration 对象
 		NettyShuffleEnvironmentConfiguration networkConfig = NettyShuffleEnvironmentConfiguration.fromConfiguration(
 			shuffleEnvironmentContext.getConfiguration(),
 			shuffleEnvironmentContext.getNetworkMemorySize(),
@@ -103,20 +104,25 @@ public class NettyShuffleServiceFactory implements ShuffleServiceFactory<NettySh
 
 		NettyConfig nettyConfig = config.nettyConfig();
 
+		// TODO_WU 返回： FileChannelManagerImpl
 		FileChannelManager fileChannelManager = new FileChannelManagerImpl(config.getTempDirs(), DIR_NAME_PREFIX);
 
+		// TODO_WU 返回： NettyConnectionManager
 		ConnectionManager connectionManager = nettyConfig != null ?
 			new NettyConnectionManager(resultPartitionManager, taskEventPublisher, nettyConfig) :
 			new LocalConnectionManager();
 
+		// TODO_WU 返回： NetworkBufferPool
 		NetworkBufferPool networkBufferPool = new NetworkBufferPool(
 			config.numNetworkBuffers(),
 			config.networkBufferSize(),
 			config.networkBuffersPerChannel(),
 			config.getRequestSegmentsTimeout());
 
+		// TODO_WU 注册shuffle相关监控
 		registerShuffleMetrics(metricGroup, networkBufferPool);
 
+		// TODO_WU 构建 ResultPartitionFactory
 		ResultPartitionFactory resultPartitionFactory = new ResultPartitionFactory(
 			resultPartitionManager,
 			fileChannelManager,
@@ -129,6 +135,7 @@ public class NettyShuffleServiceFactory implements ShuffleServiceFactory<NettySh
 			config.isBlockingShuffleCompressionEnabled(),
 			config.getCompressionCodec());
 
+		// TODO_WU 构建 SingleInputGateFactory
 		SingleInputGateFactory singleInputGateFactory = new SingleInputGateFactory(
 			taskExecutorResourceId,
 			config,
@@ -137,6 +144,7 @@ public class NettyShuffleServiceFactory implements ShuffleServiceFactory<NettySh
 			taskEventPublisher,
 			networkBufferPool);
 
+		// TODO_WU NettyShuffleEnvironment
 		return new NettyShuffleEnvironment(
 			taskExecutorResourceId,
 			config,

@@ -109,12 +109,15 @@ public class ResultPartitionFactory {
 			int maxParallelism,
 			FunctionWithException<BufferPoolOwner, BufferPool, IOException> bufferPoolFactory) {
 		BufferCompressor bufferCompressor = null;
+		// TODO_WU 判断ResultPartitionType是否为Blocking类型，如果是则需要创建BufferCompressor
 		if (type.isBlocking() && blockingShuffleCompressionEnabled) {
 			bufferCompressor = new BufferCompressor(networkBufferSize, compressionCodec);
 		}
 
+		// TODO_WU 初始化一个 ResultSubpartition 数组
 		ResultSubpartition[] subpartitions = new ResultSubpartition[numberOfSubpartitions];
 		ResultPartition partition = forcePartitionReleaseOnConsumption || !type.isBlocking()
+			// TODO_WU 批处理，创建一个 ReleaseOnConsumptionResultPartition
 			? new ReleaseOnConsumptionResultPartition(
 				taskNameWithSubtaskAndId,
 				id,
@@ -124,6 +127,7 @@ public class ResultPartitionFactory {
 				partitionManager,
 				bufferCompressor,
 				bufferPoolFactory)
+			// TODO_WU 流式处理，创建一个 ResultPartition
 			: new ResultPartition(
 				taskNameWithSubtaskAndId,
 				id,
@@ -134,6 +138,7 @@ public class ResultPartitionFactory {
 				bufferCompressor,
 				bufferPoolFactory);
 
+		// TODO_WU 创建 ResultSubPartition
 		createSubpartitions(partition, type, blockingSubpartitionType, subpartitions);
 
 		LOG.debug("{}: Initialized {}", taskNameWithSubtaskAndId, this);
@@ -155,7 +160,9 @@ public class ResultPartitionFactory {
 				networkBufferSize,
 				channelManager);
 		} else {
+			// TODO_WU 创建 PipelinedSubpartition ResultSubpartition i--下游task个数
 			for (int i = 0; i < subpartitions.length; i++) {
+				// TODO_WU subpartitions缓存 通过BufferBuilder创建的BufferConsumer对象
 				subpartitions[i] = new PipelinedSubpartition(i, partition);
 			}
 		}

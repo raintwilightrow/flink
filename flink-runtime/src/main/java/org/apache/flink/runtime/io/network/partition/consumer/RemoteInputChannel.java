@@ -144,6 +144,7 @@ public class RemoteInputChannel extends InputChannel implements BufferRecycler, 
 
 		synchronized (bufferQueue) {
 			for (MemorySegment segment : segments) {
+				// TODO_WU 分配 Buffer
 				bufferQueue.addExclusiveBuffer(new NetworkBuffer(segment, this), numRequiredBuffers);
 			}
 		}
@@ -630,6 +631,7 @@ public class RemoteInputChannel extends InputChannel implements BufferRecycler, 
 		 * @return How many buffers were added to the queue
 		 */
 		int addExclusiveBuffer(Buffer buffer, int numRequiredBuffers) {
+			// TODO_WU 加入 独占buffer池
 			exclusiveBuffers.add(buffer);
 			if (getAvailableBufferSize() > numRequiredBuffers) {
 				Buffer floatingBuffer = floatingBuffers.poll();

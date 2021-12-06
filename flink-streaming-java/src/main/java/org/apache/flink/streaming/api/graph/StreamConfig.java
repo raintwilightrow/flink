@@ -235,6 +235,7 @@ public class StreamConfig implements Serializable {
 
 	public <T extends StreamOperatorFactory<?>> T getStreamOperatorFactory(ClassLoader cl) {
 		try {
+			// TODO_WU 通过配置获取： StreamOperatorFactory
 			return InstantiationUtil.readObjectFromConfig(this.config, SERIALIZEDUDF, cl);
 		}
 		catch (ClassNotFoundException e) {

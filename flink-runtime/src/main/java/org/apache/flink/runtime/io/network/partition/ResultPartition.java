@@ -140,7 +140,9 @@ public class ResultPartition implements ResultPartitionWriter, BufferPoolOwner {
 	public void setup() throws IOException {
 		checkState(this.bufferPool == null, "Bug in result partition setup logic: Already registered buffer pool.");
 
-		BufferPool bufferPool = checkNotNull(bufferPoolFactory.apply(this));
+		BufferPool bufferPool = checkNotNull(
+			// TODO_WU 创建LocalBufferPool
+			bufferPoolFactory.apply(this));
 		// TODO_WU MemorySegment > Subpartition
 		checkArgument(bufferPool.getNumberOfRequiredMemorySegments() >= getNumberOfSubpartitions(),
 			"Bug in result partition setup logic: Buffer pool has not enough guaranteed buffers for this result partition.");
@@ -285,12 +287,14 @@ public class ResultPartition implements ResultPartitionWriter, BufferPoolOwner {
 	}
 
 	/**
+	 * // TODO_WU 在指定的 ResultSubpartition 中创建一个 ResultSubpartitionView，用于消费数据
 	 * Returns the requested subpartition.
 	 */
 	public ResultSubpartitionView createSubpartitionView(int index, BufferAvailabilityListener availabilityListener) throws IOException {
 		checkElementIndex(index, subpartitions.length, "Subpartition not found.");
 		checkState(!isReleased.get(), "Partition released.");
 
+		// TODO_WU 创建 ResultSubpartitionView，可以看作是 ResultSubpartition 的消费者
 		ResultSubpartitionView readView = subpartitions[index].createReadView(availabilityListener);
 
 		LOG.debug("Created {}", readView);

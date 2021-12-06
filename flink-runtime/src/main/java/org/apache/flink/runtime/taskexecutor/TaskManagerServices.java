@@ -231,6 +231,7 @@ public class TaskManagerServices {
 			taskEventDispatcher,
 			taskManagerMetricGroup,
 			ioExecutor);
+		// TODO_WU 启动过程中，启动了 Netty 服务端 和 客户端，负责 IO
 		final int dataPort = shuffleEnvironment.start();
 
 		final KvStateService kvStateService = KvStateService.fromConfiguration(taskManagerServicesConfiguration);
@@ -305,6 +306,7 @@ public class TaskManagerServices {
 			MetricGroup taskManagerMetricGroup,
 			Executor ioExecutor) throws FlinkException {
 
+		// TODO_WU 构建 Shuffle 上下文对象：ShuffleEnvironmentContext
 		final ShuffleEnvironmentContext shuffleEnvironmentContext = new ShuffleEnvironmentContext(
 			taskManagerServicesConfiguration.getConfiguration(),
 			taskManagerServicesConfiguration.getResourceID(),
@@ -315,6 +317,7 @@ public class TaskManagerServices {
 			taskManagerMetricGroup,
 			ioExecutor);
 
+		// TODO_WU 通过反射拿到 NettyShuffleServiceFactory 对象
 		return ShuffleServiceLoader
 			.loadShuffleServiceFactory(taskManagerServicesConfiguration.getConfiguration())
 			.createShuffleEnvironment(shuffleEnvironmentContext);

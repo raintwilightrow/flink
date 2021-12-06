@@ -111,6 +111,7 @@ public class SingleInputGateFactory {
 			@Nonnull InputGateDeploymentDescriptor igdd,
 			@Nonnull PartitionProducerStateProvider partitionProducerStateProvider,
 			@Nonnull InputChannelMetrics metrics) {
+		// TODO_WU 创建 BufferPoolFactory
 		SupplierWithException<BufferPool, IOException> bufferPoolFactory = createBufferPoolFactory(
 			networkBufferPool,
 			networkBuffersPerChannel,
@@ -123,6 +124,7 @@ public class SingleInputGateFactory {
 			bufferDecompressor = new BufferDecompressor(networkBufferSize, compressionCodec);
 		}
 
+		// TODO_WU 创建 SingleInputGate
 		SingleInputGate inputGate = new SingleInputGate(
 			owningTaskName,
 			igdd.getConsumedResultId(),
@@ -133,6 +135,7 @@ public class SingleInputGateFactory {
 			bufferPoolFactory,
 			bufferDecompressor);
 
+		// TODO_WU 创建该 InputGate 中的多个 InputChannel
 		createInputChannels(owningTaskName, igdd, inputGate, metrics);
 		return inputGate;
 	}
@@ -144,11 +147,13 @@ public class SingleInputGateFactory {
 			InputChannelMetrics metrics) {
 		ShuffleDescriptor[] shuffleDescriptors = inputGateDeploymentDescriptor.getShuffleDescriptors();
 
+		// TODO_WU 先生成一个 ShuffleDescriptor 数组
 		// Create the input channels. There is one input channel for each consumed partition.
 		InputChannel[] inputChannels = new InputChannel[shuffleDescriptors.length];
 
 		ChannelStatistics channelStatistics = new ChannelStatistics();
 
+		// TODO_WU 遍历创建 InputChannel 每个resultPartitionID对应一个InputChannel
 		for (int i = 0; i < inputChannels.length; i++) {
 			inputChannels[i] = createInputChannel(
 				inputGate,
@@ -172,6 +177,7 @@ public class SingleInputGateFactory {
 			ShuffleDescriptor shuffleDescriptor,
 			ChannelStatistics channelStatistics,
 			InputChannelMetrics metrics) {
+		// TODO_WU 包装
 		return applyWithShuffleTypeCheck(
 			NettyShuffleDescriptor.class,
 			shuffleDescriptor,
@@ -205,7 +211,10 @@ public class SingleInputGateFactory {
 			ChannelStatistics channelStatistics,
 			InputChannelMetrics metrics) {
 		ResultPartitionID partitionId = inputChannelDescriptor.getResultPartitionID();
-		if (inputChannelDescriptor.isLocalTo(taskExecutorResourceId)) {
+		// TODO_WU 本地
+		if (
+			// TODO_WU Task实例属于同一个TaskManager
+			inputChannelDescriptor.isLocalTo(taskExecutorResourceId)) {
 			// Consuming task is deployed to the same TaskManager as the partition => local
 			channelStatistics.numLocalChannels++;
 			return new LocalInputChannel(
@@ -218,6 +227,7 @@ public class SingleInputGateFactory {
 				partitionRequestMaxBackoff,
 				metrics);
 		} else {
+			// TODO_WU 远程
 			// Different instances => remote
 			channelStatistics.numRemoteChannels++;
 			return new RemoteInputChannel(

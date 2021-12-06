@@ -31,9 +31,11 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 public abstract class ResultSubpartition {
 
+	// TODO_WU 其数目要由下游消费 Task 数和 DistributionPattern 来决定
 	/** The index of the subpartition at the parent partition. */
 	protected final int index;
 
+	// TODO_WU 从属于哪个 ResultPartition
 	/** The parent partition this subpartition belongs to. */
 	protected final ResultPartition parent;
 

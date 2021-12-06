@@ -53,6 +53,7 @@ class PipelinedSubpartitionView implements ResultSubpartitionView {
 
 	@Override
 	public void notifyDataAvailable() {
+		// TODO_WU LocalInputChannel|CreditBasedSequenceNumberingViewReader
 		availabilityListener.notifyDataAvailable();
 	}
 

@@ -45,7 +45,9 @@ public class NettyConnectionManager implements ConnectionManager {
 		TaskEventPublisher taskEventPublisher,
 		NettyConfig nettyConfig) {
 
+		// TODO_WU 初始化一个 NettyServer
 		this.server = new NettyServer(nettyConfig);
+		// TODO_WU 初始化一个 NettyClient
 		this.client = new NettyClient(nettyConfig);
 		this.bufferPool = new NettyBufferPool(nettyConfig.getNumberOfArenas());
 

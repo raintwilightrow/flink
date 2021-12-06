@@ -61,8 +61,11 @@ public class SourceStreamTask<OUT, SRC extends SourceFunction<OUT>, OP extends S
 	 */
 	private volatile boolean isFinished = false;
 
+	// TODO_WU 构造 Task 具体启动实例的时候，调用这个构造器
+	// TODO_WU 1.11添加lock
 	public SourceStreamTask(Environment env) {
 		super(env);
+		// TODO_WU 初始化线程：LegacySourceFunctionThread 用于产生 data
 		this.sourceThread = new LegacySourceFunctionThread();
 	}
 
@@ -116,6 +119,7 @@ public class SourceStreamTask<OUT, SRC extends SourceFunction<OUT>, OP extends S
 	@Override
 	protected void processInput(MailboxDefaultAction.Controller controller) throws Exception {
 
+		// TODO_WU 阻塞，等待invokable.invoke()
 		controller.suspendDefaultAction();
 
 		// Against the usual contract of this method, this implementation is not step-wise but blocking instead for

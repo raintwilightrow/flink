@@ -1077,7 +1077,7 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 
 			ResourceManager.this.releaseResource(instanceId, cause);
 		}
-
+		allocateResource
 		@Override
 		public Collection<ResourceProfile> allocateResource(ResourceProfile resourceProfile) {
 			validateRunsInMainThread();

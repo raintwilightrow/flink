@@ -155,10 +155,17 @@ public class ConsumableNotifyingResultPartitionWriterDecorator implements Result
 			JobID jobId,
 			ResultPartitionConsumableNotifier notifier) {
 
+		// TODO_WU 初始化一个容器
 		ResultPartitionWriter[] consumableNotifyingPartitionWriters = new ResultPartitionWriter[partitionWriters.length];
 		int counter = 0;
 		for (ResultPartitionDeploymentDescriptor desc : descs) {
+			/**
+			 *  TODO_WU sendScheduleOrUpdateConsumersMessage没有数据产出的时候，需要发送消息来更新
+			 *  {@link org.apache.flink.runtime.jobgraph.ScheduleMode} 的allowLazyDeployment属性
+			 *  流任务为cheduleMode.EAGER(false)
+			 */
 			if (desc.sendScheduleOrUpdateConsumersMessage() && desc.getPartitionType().isPipelined()) {
+				// TODO_WU 初始化 ResultPartitionWriter
 				consumableNotifyingPartitionWriters[counter] = new ConsumableNotifyingResultPartitionWriterDecorator(
 					taskActions,
 					jobId,

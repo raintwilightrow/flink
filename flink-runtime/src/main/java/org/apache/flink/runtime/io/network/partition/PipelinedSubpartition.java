@@ -248,6 +248,7 @@ class PipelinedSubpartition extends ResultSubpartition {
 			readView = new PipelinedSubpartitionView(this, availabilityListener);
 			notifyDataAvailable = !buffers.isEmpty();
 		}
+		// TODO_WU 通知可以消费数据
 		if (notifyDataAvailable) {
 			notifyDataAvailable();
 		}

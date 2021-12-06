@@ -372,7 +372,7 @@ public class Task implements Runnable, TaskSlotPayload, TaskActions, PartitionPr
 			taskShuffleContext,
 			resultPartitionDeploymentDescriptors).toArray(new ResultPartitionWriter[] {});
 
-		// TODO_WU 对上述生成的 ResultPartition 再根据是否需要发回反馈信息等，进行进一步对象的处理
+		// TODO_WU 调用ConsumableNotifyingResultPartitionWriterDecorator装饰类对ResultPartitionWriter进行装饰 实现反压的功能
 		this.consumableNotifyingPartitionWriters = ConsumableNotifyingResultPartitionWriterDecorator.decorate(
 			resultPartitionDeploymentDescriptors,
 			resultPartitionWriters,

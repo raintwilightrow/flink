@@ -29,6 +29,7 @@ import java.util.Map;
 import static org.apache.flink.util.Preconditions.checkState;
 
 /**
+ * // TODO_WU 跟踪 task manager 的所有当前生产/消耗的分区
  * The result partition manager keeps track of all currently produced/consumed partitions of a
  * task manager.
  */
@@ -36,10 +37,12 @@ public class ResultPartitionManager implements ResultPartitionProvider {
 
 	private static final Logger LOG = LoggerFactory.getLogger(ResultPartitionManager.class);
 
+	// TODO_WU 管理了这个 TaskManager 上的所有 ResultPartition
 	private final Map<ResultPartitionID, ResultPartition> registeredPartitions = new HashMap<>(16);
 
 	private boolean isShutdown;
 
+	// TODO_WU 在Task向 ShuffleEnvironment 注册的时候就会逐一注册所有的 ResultPartition
 	public void registerResultPartition(ResultPartition partition) {
 		synchronized (registeredPartitions) {
 			checkState(!isShutdown, "Result partition manager already shut down.");

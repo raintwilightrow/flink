@@ -269,6 +269,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 			@Nullable TimerService timerService,
 			Thread.UncaughtExceptionHandler uncaughtExceptionHandler,
 			StreamTaskActionExecutor.SynchronizedStreamTaskActionExecutor actionExecutor) {
+		// TODO_WU 每个 StreamTask 都会生成一个 TaskMailboxImpl 对象
 		this(environment, timerService, uncaughtExceptionHandler, actionExecutor, new TaskMailboxImpl(Thread.currentThread()));
 	}
 
@@ -285,10 +286,15 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 		this.uncaughtExceptionHandler = Preconditions.checkNotNull(uncaughtExceptionHandler);
 		this.configuration = new StreamConfig(getTaskConfiguration());
 		this.accumulatorMap = getEnvironment().getAccumulatorRegistry().getUserMap();
+		// TODO_WU 创建 RecordWriter
 		this.recordWriter = createRecordWriterDelegate(configuration, environment);
+		// TODO_WU SynchronizedStreamTaskActionExecutor
 		this.actionExecutor = Preconditions.checkNotNull(actionExecutor);
+		// TODO_WU 初始化 MailboxProcessor，执行 StreamTask 的 processInput() 方法
 		this.mailboxProcessor = new MailboxProcessor(this::processInput, mailbox, actionExecutor);
 		this.asyncExceptionHandler = new StreamTaskAsyncExceptionHandler(environment);
+		// TODO_WU 1.11 在streamtask初始化时createStateBackend(),new SubtaskCheckpointCoordinatorImpl等，
+		// 1.10相关步骤在beforeinvoke()
 	}
 
 	// ------------------------------------------------------------------------
@@ -314,16 +320,21 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 	 * @throws Exception on any problems in the action.
 	 */
 	protected void processInput(MailboxDefaultAction.Controller controller) throws Exception {
+		// TODO_WU 处理输入
 		InputStatus status = inputProcessor.processInput();
+		// TODO_WU 果输入还有数据，并且 writer 是可用的，直接返回
 		if (status == InputStatus.MORE_AVAILABLE && recordWriter.isAvailable()) {
 			return;
 		}
+		// TODO_WU 输入已经处理完毕
 		if (status == InputStatus.END_OF_INPUT) {
 			controller.allActionsCompleted();
 			return;
 		}
 		CompletableFuture<?> jointFuture = getInputOutputJointFuture(status);
+		// TODO_WU 暂停 mailbox loop
 		MailboxDefaultAction.Suspension suspendedDefaultAction = controller.suspendDefaultAction();
+		// TODO_WU 等待 future 完成后，继续 mailbox loop
 		jointFuture.thenRun(suspendedDefaultAction::resume);
 	}
 
@@ -423,9 +434,11 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 
 		asyncOperationsThreadPool = Executors.newCachedThreadPool(new ExecutorThreadFactory("AsyncOperations", uncaughtExceptionHandler));
 
+		// TODO_WU 创建statebackend和checkpointStorage
 		stateBackend = createStateBackend();
 		checkpointStorage = stateBackend.createCheckpointStorage(getEnvironment().getJobID());
 
+		// TODO_WU ProcessingTime， EventTime， InjestioniTime
 		// if the clock is not already set, then assign a default TimeServiceProvider
 		if (timerService == null) {
 			ThreadFactory timerThreadFactory =
@@ -437,8 +450,10 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 		}
 
 		operatorChain = new OperatorChain<>(this, recordWriter);
+		// TODO_WU 获取 OperatorChain 的第一个 Operator
 		headOperator = operatorChain.getHeadOperator();
 
+		// TODO_WU 实现子类的逻辑
 		// task specific initialization
 		init();
 
@@ -1450,6 +1465,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 	public static <OUT> RecordWriterDelegate<SerializationDelegate<StreamRecord<OUT>>> createRecordWriterDelegate(
 			StreamConfig configuration,
 			Environment environment) {
+		// TODO_WU 创建 RecordWriter
 		List<RecordWriter<SerializationDelegate<StreamRecord<OUT>>>> recordWrites = createRecordWriters(
 			configuration,
 			environment);
@@ -1466,8 +1482,10 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 			StreamConfig configuration,
 			Environment environment) {
 		List<RecordWriter<SerializationDelegate<StreamRecord<OUT>>>> recordWriters = new ArrayList<>();
+		// TODO_WU 获取该 StreamTask 的输出 StreamEdge 集合
 		List<StreamEdge> outEdgesInOrder = configuration.getOutEdgesInOrder(environment.getUserClassLoader());
 
+		// TODO_WU 按照 out StreamEdge 的个数来构建 RecordWriter
 		for (int i = 0; i < outEdgesInOrder.size(); i++) {
 			StreamEdge edge = outEdgesInOrder.get(i);
 			recordWriters.add(
@@ -1489,6 +1507,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 			String taskName,
 			long bufferTimeout) {
 
+		// TODO_WU 获取流分区器 在streamgraph中指定
 		StreamPartitioner<OUT> outputPartitioner = null;
 
 		// Clones the partition to avoid multiple stream edges sharing the same stream partitioner,
@@ -1503,8 +1522,10 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 
 		LOG.debug("Using partitioner {} for output {} of task {}", outputPartitioner, outputIndex, taskName);
 
+		// TODO_WU 具体实现ConsumableNotifyingResultPartitionWriterDecorator，在task初始化时指定
 		ResultPartitionWriter bufferWriter = environment.getWriter(outputIndex);
 
+		// TODO_WU 我们在这里用键组的数量（也就是最大并行度）初始化分区程序
 		// we initialize the partitioner here with the number of key groups (aka max. parallelism)
 		if (outputPartitioner instanceof ConfigurableStreamPartitioner) {
 			int numKeyGroups = bufferWriter.getNumTargetKeyGroups();
@@ -1513,10 +1534,12 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 			}
 		}
 
+		// TODO_WU 初始化RecordWriter
 		RecordWriter<SerializationDelegate<StreamRecord<OUT>>> output = new RecordWriterBuilder<SerializationDelegate<StreamRecord<OUT>>>()
 			.setChannelSelector(outputPartitioner)
 			.setTimeout(bufferTimeout)
 			.setTaskName(taskName)
+			// TODO_WU 构建一个 RecordWriter 返回
 			.build(bufferWriter);
 		output.setMetricGroup(environment.getMetricGroup().getIOMetricGroup());
 		return output;

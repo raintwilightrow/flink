@@ -31,8 +31,11 @@ public enum ShuffleServiceLoader {
 	;
 
 	public static ShuffleServiceFactory<?, ?, ?> loadShuffleServiceFactory(Configuration configuration) throws FlinkException {
-		String shuffleServiceClassName = configuration.getString(SHUFFLE_SERVICE_FACTORY_CLASS);
+		String shuffleServiceClassName = configuration.
+			// TODO_WU "org.apache.flink.runtime.io.network.NettyShuffleServiceFactory"
+			getString(SHUFFLE_SERVICE_FACTORY_CLASS);
 		ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
+		// TODO_WU 构建 NettyShuffleServiceFactory 实例
 		return InstantiationUtil.instantiate(
 			shuffleServiceClassName,
 			ShuffleServiceFactory.class,

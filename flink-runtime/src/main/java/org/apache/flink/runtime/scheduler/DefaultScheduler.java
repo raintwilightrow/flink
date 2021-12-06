@@ -385,19 +385,20 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
 
 	private void waitForAllSlotsAndDeploy(final List<DeploymentHandle> deploymentHandles) {
 		FutureUtils.assertNoException(
-			// TODO_WU 把 每个 DeploymentHandle 去分配资源给自己对应的 ExecutionVertex
+			// TODO_WU 1、把每个 DeploymentHandle 去分配资源给自己对应的 ExecutionVertex
 			assignAllResources(deploymentHandles).handle(
-				// TODO_WU 执行任务部署
+				// TODO_WU 2、执行任务部署
 				deployAll(deploymentHandles)));
 	}
 
 	private CompletableFuture<Void> assignAllResources(final List<DeploymentHandle> deploymentHandles) {
 		final List<CompletableFuture<Void>> slotAssignedFutures = new ArrayList<>();
+		// TODO_WU 对每个deploymentHandle进行操作
 		for (DeploymentHandle deploymentHandle : deploymentHandles) {
 			final CompletableFuture<Void> slotAssigned = deploymentHandle
 				.getSlotExecutionVertexAssignment()
 				.getLogicalSlotFuture()
-				// TODO_WU 调用 assignResourceOrHandleError 来获取 申请到的 slot,有可能获取不到
+				// TODO_WU 调用 assignResourceOrHandleError 来获取申请到的 slot,有可能获取不到
 				.handle(assignResourceOrHandleError(deploymentHandle));
 			slotAssignedFutures.add(slotAssigned);
 		}

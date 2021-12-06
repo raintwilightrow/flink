@@ -210,12 +210,14 @@ public class SingleInputGate extends InputGate {
 	public void setup() throws IOException, InterruptedException {
 		checkState(this.bufferPool == null, "Bug in input gate setup logic: Already registered buffer pool.");
 		// assign exclusive buffers to input channels directly and use the rest for floating buffers
+		// TODO_WU 为 InputChannel 分配 Buffer
 		assignExclusiveSegments();
 
 		// TODO_WU BufferPool 用于管理 MemorySegement
 		BufferPool bufferPool = bufferPoolFactory.get();
 		setBufferPool(bufferPool);
 
+		// TODO_WU 1.11 在RecordReader中getNextRecord请求分区
 		requestPartitions();
 	}
 
@@ -238,6 +240,9 @@ public class SingleInputGate extends InputGate {
 				}
 
 				for (InputChannel inputChannel : inputChannels.values()) {
+					// TODO_WU 1.11 convertRecoveredInputChannels
+
+					// TODO_WU 每一个channel都请求对应的子分区
 					inputChannel.requestSubpartition(consumedSubpartitionIndex);
 				}
 			}
@@ -310,6 +315,7 @@ public class SingleInputGate extends InputGate {
 	}
 
 	/**
+	 * // TODO_WU 直接为基于信用的模式将独占缓冲区分配给所有远程输入通道
 	 * Assign the exclusive buffers to all remote input channels directly for credit-based mode.
 	 */
 	@VisibleForTesting
@@ -317,9 +323,11 @@ public class SingleInputGate extends InputGate {
 		synchronized (requestLock) {
 			for (InputChannel inputChannel : inputChannels.values()) {
 				if (inputChannel instanceof RemoteInputChannel) {
+					// TODO_WU RemoteInputChannel 调用 assignExclusiveSegments
 					((RemoteInputChannel) inputChannel).assignExclusiveSegments();
 				}
 			}
+			//1.11 add RemoteRecoveredInputChannel to support unaligned checkpoint
 		}
 	}
 

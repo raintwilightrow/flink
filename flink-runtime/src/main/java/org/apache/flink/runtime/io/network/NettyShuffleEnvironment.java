@@ -196,9 +196,11 @@ public class NettyShuffleEnvironment implements ShuffleEnvironment<ResultPartiti
 		synchronized (lock) {
 			Preconditions.checkState(!isClosed, "The NettyShuffleEnvironment has already been shut down.");
 
+			// TODO_WU 生成一个容器数组
 			ResultPartition[] resultPartitions = new ResultPartition[resultPartitionDeploymentDescriptors.size()];
 			int counter = 0;
 			for (ResultPartitionDeploymentDescriptor rpdd : resultPartitionDeploymentDescriptors) {
+				// TODO_WU 一个 ResultParition 关联到一个 ResultPartitionWriter
 				resultPartitions[counter++] = resultPartitionFactory.create(ownerContext.getOwnerName(), rpdd);
 			}
 
@@ -219,9 +221,11 @@ public class NettyShuffleEnvironment implements ShuffleEnvironment<ResultPartiti
 			@SuppressWarnings("deprecation")
 			InputChannelMetrics inputChannelMetrics = new InputChannelMetrics(networkInputGroup, ownerContext.getParentGroup());
 
+			// TODO_WU 初始化数组
 			SingleInputGate[] inputGates = new SingleInputGate[inputGateDeploymentDescriptors.size()];
 			int counter = 0;
 			for (InputGateDeploymentDescriptor igdd : inputGateDeploymentDescriptors) {
+				// TODO_WU 创建 SingleInputGate
 				SingleInputGate inputGate = singleInputGateFactory.create(
 					ownerContext.getOwnerName(),
 					igdd,
@@ -290,6 +294,7 @@ public class NettyShuffleEnvironment implements ShuffleEnvironment<ResultPartiti
 
 			try {
 				LOG.debug("Starting network connection manager");
+				// TODO_WU 启动网络链接管理器
 				return connectionManager.start();
 			} catch (IOException t) {
 				throw new IOException("Failed to instantiate network connection manager.", t);
