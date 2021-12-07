@@ -115,6 +115,7 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Strea
 		// TODO_WU 如果是 SourceStreamTask，构造 StreamOperatorFactory = SourceOperatorFactory
 		StreamOperatorFactory<OUT> operatorFactory = configuration.getStreamOperatorFactory(userCodeClassloader);
 
+		// TODO_WU chainedConfigs的配置决定了算子之间Output接口的具体实现
 		// we read the chained configs, and the order of record writer registrations by output name
 		Map<Integer, StreamConfig> chainedConfigs = configuration.getTransitiveChainedTaskConfigsWithSelf(userCodeClassloader);
 
@@ -131,7 +132,7 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Strea
 			// TODO_WU 遍历每个输出边，给每个 outEdge 构造一个 RecordWriterOutput 实例
 			for (int i = 0; i < outEdgesInOrder.size(); i++) {
 				StreamEdge outEdge = outEdgesInOrder.get(i);
-				// TODO_WU 为每一个 Operator 构造 RecordWriterOutput
+				// TODO_WU 为每一个 输出边 构造 RecordWriterOutput
 				RecordWriterOutput<?> streamOutput = createStreamOutput(
 					recordWriterDelegate.getRecordWriter(i),
 					outEdge,
@@ -145,7 +146,7 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Strea
 			// TODO_WU 准备将streamtask进行封装
 			// we create the chain of operators and grab the collector that leads into the chain
 			List<StreamOperator<?>> allOps = new ArrayList<>(chainedConfigs.size());
-			// TODO_WU 为每一个 Operator 创建 OutputCollector
+			// TODO_WU 为每一个 Operator 创建 OutputCollector,返回的chainEntryPoint是头部
 			this.chainEntryPoint = createOutputCollector(
 				containingTask,
 				configuration,
@@ -181,6 +182,7 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Strea
 			// make sure we clean up after ourselves in case of a failure after acquiring
 			// the first resources
 			if (!success) {
+				// TODO_WU 关闭已经创建的RecordWriterOutput实例，防止出现内存泄漏
 				for (RecordWriterOutput<?> output : this.streamOutputs) {
 					if (output != null) {
 						output.close();
@@ -343,28 +345,32 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Strea
 			MailboxExecutorFactory mailboxExecutorFactory) {
 		List<Tuple2<WatermarkGaugeExposingOutput<StreamRecord<T>>, StreamEdge>> allOutputs = new ArrayList<>(4);
 
-		// TODO_WU 为 network outputs 创建收集器
+		// TODO_WU 遍历非链式StreamEdge，非链式的StreamEdge输出需要走网络连接,生成的Output类型为RecordWriterOutput
 		// create collectors for the network outputs
 		for (StreamEdge outputEdge : operatorConfig.getNonChainedOutputs(userCodeClassloader)) {
 			@SuppressWarnings("unchecked")
+				// TODO_WU 已经在第一步完成output构建
 			RecordWriterOutput<T> output = (RecordWriterOutput<T>) streamOutputs.get(outputEdge);
 
 			allOutputs.add(new Tuple2<>(output, outputEdge));
 		}
 
-		// TODO_WU 为 chained outputs 创建收集器
+		// TODO_WU 获取该Operator对应的所有chained StreamEdge
 		// Create collectors for the chained outputs
 		for (StreamEdge outputEdge : operatorConfig.getChainedOutputs(userCodeClassloader)) {
 			int outputId = outputEdge.getTargetId();
+			// TODO_WU 获取这个outputEdge对应的StreamConfig
 			StreamConfig chainedOpConfig = chainedConfigs.get(outputId);
 
-			// TODO_WU 构建 output 输出对象 ChainingOutput|CopyingChainingOutput 是否配置了reuse objects
+			// TODO_WU 根据StreamEdge生成streamOutput，为WatermarkGaugeExposingOutput类型,
+			// TODO_WU 存在可以chain的operator，需要递归调用，将下游与上游链接起来
 			WatermarkGaugeExposingOutput<StreamRecord<T>> output = createChainedOperator(
 				containingTask,
 				chainedOpConfig,
 				chainedConfigs,
 				userCodeClassloader,
 				streamOutputs,
+				// TODO_WU 首次调用方法时传入的arraylist，此时为new ArrayList<>(chainedConfigs.size())
 				allOperators,
 				outputEdge.getOutputTag(),
 				mailboxExecutorFactory);
@@ -380,7 +386,7 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Strea
 		if (selectors == null || selectors.isEmpty()) {
 			// simple path, no selector necessary
 			if (allOutputs.size() == 1) {
-				// TODO_WU 可能情况之五： ChainingOutput 或者 CopyingChainingOutput
+				// TODO_WU 可能情况之2： ChainingOutput 或者 CopyingChainingOutput
 				return allOutputs.get(0).f0;
 			}
 			else {
@@ -396,10 +402,10 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Strea
 				// If the chaining output does not copy we need to copy in the broadcast output,
 				// otherwise multi-chaining would not work correctly.
 				if (containingTask.getExecutionConfig().isObjectReuseEnabled()) {
-					// TODO_WU 可能情况之一： CopyingBroadcastingOutputCollector
+					// TODO_WU 可能情况之3-2： CopyingBroadcastingOutputCollector
 					return new CopyingBroadcastingOutputCollector<>(asArray, this);
 				} else  {
-					// TODO_WU 可能情况之二： BroadcastingOutputCollector
+					// TODO_WU 可能情况之3-1： BroadcastingOutputCollector
 					return new BroadcastingOutputCollector<>(asArray, this);
 				}
 			}
@@ -411,10 +417,10 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Strea
 			// If the chaining output does not copy we need to copy in the broadcast output,
 			// otherwise multi-chaining would not work correctly.
 			if (containingTask.getExecutionConfig().isObjectReuseEnabled()) {
-				// TODO_WU 可能情况之三： CopyingDirectedOutput
+				// TODO_WU 可能情况之4-2： CopyingDirectedOutput
 				return new CopyingDirectedOutput<>(selectors, allOutputs);
 			} else {
-				// TODO_WU 可能情况之四： DirectedOutput
+				// TODO_WU 可能情况之4-1： DirectedOutput
 				return new DirectedOutput<>(selectors, allOutputs);
 			}
 
@@ -430,9 +436,11 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Strea
 			List<StreamOperator<?>> allOperators,
 			OutputTag<IN> outputTag,
 			MailboxExecutorFactory mailboxExecutorFactory) {
+		// TODO_WU 将下游outEdge对应的StreamConfig作为参数，再次调用createOutputCollector
 		// create the output that the operator writes to first. this may recursively create more operators
 		WatermarkGaugeExposingOutput<StreamRecord<OUT>> chainedOperatorOutput = createOutputCollector(
 			containingTask,
+			// TODO_WU operatorConfig为前一个方法中每次遍历的chainedOpConfig
 			operatorConfig,
 			chainedConfigs,
 			userCodeClassloader,
@@ -447,9 +455,11 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Strea
 				operatorConfig,
 				chainedOperatorOutput);
 
+		// TODO_WU 由于是递归调用，最先执行到这里的是最下游的算子,保存的顺序实际上是operator按照数据流向反向排列
 		allOperators.add(chainedOperator);
 
 		WatermarkGaugeExposingOutput<StreamRecord<IN>> currentOperatorOutput;
+		// TODO_WU 可能情况之2
 		if (containingTask.getExecutionConfig().isObjectReuseEnabled()) {
 			currentOperatorOutput = new ChainingOutput<>(chainedOperator, this, outputTag);
 		}
@@ -470,6 +480,7 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Strea
 			StreamEdge edge,
 			StreamConfig upStreamConfig,
 			Environment taskEnvironment) {
+		// TODO_WU 获取Output标签，如果没有配置旁路输出，没有OutputTag
 		OutputTag sideOutputTag = edge.getOutputTag(); // OutputTag, return null if not sideOutput
 
 		TypeSerializer outSerializer = null;
@@ -540,6 +551,7 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Strea
 				return;
 			}
 
+			// TODO_WU 跳转到下一个 Operator 来处理元素
 			pushToOperator(record);
 		}
 
@@ -562,7 +574,9 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Strea
 				StreamRecord<T> castRecord = (StreamRecord<T>) record;
 
 				numRecordsIn.inc();
+				// TODO_WU 假设下一个算子是 keyBy， 则跳转到 ： KeyedProcessOperator,因为之后要 shuffle 了，所以之后就没有其他的 Operator 了
 				operator.setKeyContextElement1(castRecord);
+				// TODO_WU 调用 Operator 的 processElement 来处理 castRecord 数据记录
 				operator.processElement(castRecord);
 			}
 			catch (Exception e) {
@@ -652,6 +666,7 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Strea
 				StreamRecord<T> castRecord = (StreamRecord<T>) record;
 
 				numRecordsIn.inc();
+				// TODO_WU 这里创建出一个深拷贝，再发往下游
 				StreamRecord<T> copy = castRecord.copy(serializer.copy(castRecord.getValue()));
 				operator.setKeyContextElement1(copy);
 				operator.processElement(copy);

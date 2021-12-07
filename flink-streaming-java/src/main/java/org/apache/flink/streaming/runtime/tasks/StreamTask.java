@@ -465,6 +465,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 		// -------- Invoke --------
 		LOG.debug("Invoking {}", getName());
 
+		// TODO_WU task动作必须在StreamTaskActionExecutor中执行，防止出现并发执行问题，影响checkpoint actionExecutor即在当前线程直接运行
 		// we need to make sure that any triggers scheduled in open() cannot be
 		// executed before all operators are opened
 		actionExecutor.runThrowing(() -> {
@@ -472,6 +473,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 			// so that we avoid race conditions in the case that initializeState()
 			// registers a timer, that fires before the open() is called.
 
+			// TODO_WU 1.11添加SequentialChannelStateReader inputGate::requestPartition
 			initializeStateAndOpen();
 		});
 	}
@@ -497,10 +499,13 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 				throw new CancelTaskException();
 			}
 
+			// TODO_WU 任务完成后调用后相关逻辑
 			afterInvoke();
 		}
+		// TODO_WU 1.11 捕捉异常后try-catch cleanUpInvoke运行中的异常
 		finally {
 			failing = !canceled;
+			// TODO_WU 执行invoke后清理操作
 			cleanUpInvoke();
 		}
 	}

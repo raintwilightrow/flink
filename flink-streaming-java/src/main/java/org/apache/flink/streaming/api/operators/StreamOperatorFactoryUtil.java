@@ -40,11 +40,13 @@ public class StreamOperatorFactoryUtil {
 			StreamTask<OUT, ?> containingTask,
 			StreamConfig configuration,
 			Output<StreamRecord<OUT>> output) {
+		// TODO_WU 获取 MailboxExecutor
 		MailboxExecutorFactory mailboxExecutorFactory = containingTask.getMailboxExecutorFactory();
 		if (operatorFactory instanceof YieldingOperatorFactory) {
 			MailboxExecutor mailboxExecutor = mailboxExecutorFactory.createExecutor(configuration.getChainIndex());
 			((YieldingOperatorFactory) operatorFactory).setMailboxExecutor(mailboxExecutor);
 		}
+		// TODO_WU output 的初始化
 		return operatorFactory.createStreamOperator(containingTask, configuration, output);
 	}
 }
