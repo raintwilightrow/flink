@@ -115,25 +115,34 @@ public final class StreamTaskNetworkInput<T> implements StreamTaskInput<T> {
 	@Override
 	public InputStatus emitNext(DataOutput<T> output) throws Exception {
 
+		// TODO_WU 循环获取输入数据
 		while (true) {
+			// TODO_WU 如果可以通过 currentRecordDeserializer 反序列化得来结果
 			// get the stream element from the deserializer
 			if (currentRecordDeserializer != null) {
+				// TODO_WU 进行 Record 的反序列化
 				DeserializationResult result = currentRecordDeserializer.getNextRecord(deserializationDelegate);
+				// TODO_WU 如果Buffer已经被消费，则对Buffer数据占用的内存空间进行回收
 				if (result.isBufferConsumed()) {
 					currentRecordDeserializer.getCurrentBuffer().recycleBuffer();
 					currentRecordDeserializer = null;
 				}
 
+				// TODO_WU 如果结果是完整的Record记录，则调用processElement()方法进行处理
 				if (result.isFullRecord()) {
+					// TODO_WU 计算逻辑处理
 					processElement(deserializationDelegate.getInstance(), output);
 					return InputStatus.MORE_AVAILABLE;
 				}
 			}
 
+			// TODO_WU 从checkpointedInputGate中拉取数据
 			Optional<BufferOrEvent> bufferOrEvent = checkpointedInputGate.pollNext();
 			if (bufferOrEvent.isPresent()) {
+				// TODO_WU 处理数据（读取到的数据，变成buffer，进行序列化）
 				processBufferOrEvent(bufferOrEvent.get());
 			} else {
+				// TODO_WU 如果checkpointedInputGate中已经没有数据，则返回END_OF_INPUT结束计算，否则返回NOTHING_AVAILABLE
 				if (checkpointedInputGate.isFinished()) {
 					checkState(checkpointedInputGate.getAvailableFuture().isDone(), "Finished BarrierHandler should be available");
 					if (!checkpointedInputGate.isEmpty()) {

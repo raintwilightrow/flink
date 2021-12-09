@@ -29,18 +29,21 @@ import org.apache.flink.streaming.runtime.io.PushingAsyncDataInput.DataOutput;
 public enum InputStatus {
 
 	/**
+	 * // TODO_WU 表示在输入数据中还有更多的数据可以消费，当任务正常运行时，会一直处于MORE_AVAILABLE状态
 	 * Indicator that more data is available and the input can be called immediately again
 	 * to emit more data.
 	 */
 	MORE_AVAILABLE,
 
 	/**
+	 * // TODO_WU 表示当前没有数据可以消费，但是未来会有数据待处理，此时线程模型中的处理线程会被挂起并等待数据接入
 	 * Indicator that no data is currently available, but more data will be available in the
 	 * future again.
 	 */
 	NOTHING_AVAILABLE,
 
 	/**
+	 * // TODO_WU 表示数据已经达到最后的状态，之后不再有数据输入，也预示着整个Task终止
 	 * Indicator that the input has reached the end of data.
 	 */
 	END_OF_INPUT

@@ -52,7 +52,7 @@ public class StreamSource<OUT, SRC extends SourceFunction<OUT>> extends Abstract
 
 	public StreamSource(SRC sourceFunction) {
 		super(sourceFunction);
-
+		// TODO_WU chain 策略为 HEAD
 		this.chainingStrategy = ChainingStrategy.HEAD;
 	}
 
@@ -68,8 +68,10 @@ public class StreamSource<OUT, SRC extends SourceFunction<OUT>> extends Abstract
 			final Output<StreamRecord<OUT>> collector,
 			final OperatorChain<?, ?> operatorChain) throws Exception {
 
+		// TODO_WU 查看/获取 用户设置的时间语义
 		final TimeCharacteristic timeCharacteristic = getOperatorConfig().getTimeCharacteristic();
 
+		// TODO_WU 获取配置
 		final Configuration configuration = this.getContainingTask().getEnvironment().getTaskManagerInfo().getConfiguration();
 		final long latencyTrackingInterval = getExecutionConfig().isLatencyTrackingConfigured()
 			? getExecutionConfig().getLatencyTrackingInterval()
@@ -87,6 +89,7 @@ public class StreamSource<OUT, SRC extends SourceFunction<OUT>> extends Abstract
 
 		final long watermarkInterval = getRuntimeContext().getExecutionConfig().getAutoWatermarkInterval();
 
+		// TODO_WU 获取 Operator 的执行上下文对象
 		this.ctx = StreamSourceContexts.getSourceContext(
 			timeCharacteristic,
 			getProcessingTimeService(),
@@ -97,6 +100,9 @@ public class StreamSource<OUT, SRC extends SourceFunction<OUT>> extends Abstract
 			-1);
 
 		try {
+			// TODO_WU 真正运行用户的 Operator
+			// env.socketTextStream() 则调用： SocketTextStreamFunction
+			// Kafka数据源， 则调用： FlinkKafkaConsumerBase
 			userFunction.run(ctx);
 
 			// if we get here, then the user function either exited after being done (finite source)

@@ -53,6 +53,7 @@ public class StreamSourceContexts {
 			long idleTimeout) {
 
 		final SourceFunction.SourceContext<OUT> ctx;
+		// TODO_WU 根据不同的语义获取不同的 SourceContext
 		switch (timeCharacteristic) {
 			case EventTime:
 				ctx = new ManualWatermarkContext<>(
@@ -79,6 +80,8 @@ public class StreamSourceContexts {
 			default:
 				throw new IllegalArgumentException(String.valueOf(timeCharacteristic));
 		}
+
+		// TODO_WU 返回 WatermarkContext
 		return ctx;
 	}
 

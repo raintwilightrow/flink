@@ -73,10 +73,14 @@ public class SourceStreamTask<OUT, SRC extends SourceFunction<OUT>, OP extends S
 	protected void init() {
 		// we check if the source is actually inducing the checkpoints, rather
 		// than the trigger
+		// TODO_WU 获取数据源数据产生逻辑SourceFunction
 		SourceFunction<?> source = headOperator.getUserFunction();
+		// TODO_WU 如果source实现了这个接口，说明接收到CheckpointCoordinator发来的触发checkpoint消息之时source不触发checkpoint
+		// TODO_WU ExternallyInducedSource的默认实现类在SourceExternalCheckpointTriggerTest
 		if (source instanceof ExternallyInducedSource) {
 			externallyInducedCheckpoints = true;
 
+			// TODO_WU 创建checkpoint触发钩子
 			ExternallyInducedSource.CheckpointTrigger triggerHook = new ExternallyInducedSource.CheckpointTrigger() {
 
 				@Override
@@ -104,6 +108,7 @@ public class SourceStreamTask<OUT, SRC extends SourceFunction<OUT>, OP extends S
 
 			((ExternallyInducedSource<?, ?>) source).setCheckpointTrigger(triggerHook);
 		}
+		// TODO_WU 1.11 在此处配置checkpoint启动延迟时间监控
 	}
 
 	@Override
@@ -119,7 +124,7 @@ public class SourceStreamTask<OUT, SRC extends SourceFunction<OUT>, OP extends S
 	@Override
 	protected void processInput(MailboxDefaultAction.Controller controller) throws Exception {
 
-		// TODO_WU 阻塞，等待invokable.invoke()
+		// TODO_WU 阻塞
 		controller.suspendDefaultAction();
 
 		// Against the usual contract of this method, this implementation is not step-wise but blocking instead for
@@ -211,6 +216,7 @@ public class SourceStreamTask<OUT, SRC extends SourceFunction<OUT>, OP extends S
 		@Override
 		public void run() {
 			try {
+				// TODO_WU 调用 source Operator 的 run
 				headOperator.run(getCheckpointLock(), getStreamStatusMaintainer(), operatorChain);
 				completionFuture.complete(null);
 			} catch (Throwable t) {

@@ -63,18 +63,22 @@ public class SpanningRecordSerializer<T extends IOReadableWritable> implements R
 			}
 		}
 
+		// TODO_WU 清理serializationBuffer中的数据
 		serializationBuffer.clear();
+		// TODO_WU 设定serialization buffer数量
 		// the initial capacity of the serialization buffer should be no less than 4
 		serializationBuffer.skipBytesToWrite(4);
 
 		// write data and length
 		record.write(serializationBuffer);
 
+		// TODO_WU 获取serializationBuffer的长度信息并记录到serializationBuffer对象中
 		int len = serializationBuffer.length() - 4;
 		serializationBuffer.setPosition(0);
 		serializationBuffer.writeInt(len);
 		serializationBuffer.skipBytesToWrite(len);
 
+		// TODO_WU 对serializationBuffer进行wrapp处理，数据真正写到了 dataBuffer 中
 		dataBuffer = serializationBuffer.wrapAsByteBuffer();
 	}
 

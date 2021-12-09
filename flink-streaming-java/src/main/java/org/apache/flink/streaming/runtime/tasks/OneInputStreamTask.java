@@ -89,11 +89,14 @@ public class OneInputStreamTask<IN, OUT> extends StreamTask<OUT, OneInputStreamO
 		int numberOfInputs = configuration.getNumberOfInputs();
 
 		if (numberOfInputs > 0) {
+			// TODO_WU 创建 CheckpointedInputGate
 			CheckpointedInputGate inputGate = createCheckpointedInputGate();
 			TaskIOMetricGroup taskIOMetricGroup = getEnvironment().getMetricGroup().getIOMetricGroup();
 			taskIOMetricGroup.gauge("checkpointAlignmentTime", inputGate::getAlignmentDurationNanos);
 
+			// TODO_WU StreamTaskNetworkOutput
 			DataOutput<IN> output = createDataOutput();
+			// TODO_WU StreamTaskNetworkInput
 			StreamTaskInput<IN> input = createTaskInput(inputGate, output);
 			inputProcessor = new StreamOneInputProcessor<>(
 				input,

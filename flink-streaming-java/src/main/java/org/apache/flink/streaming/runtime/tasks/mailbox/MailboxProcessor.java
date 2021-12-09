@@ -175,6 +175,7 @@ public class MailboxProcessor implements Closeable {
 
 		final TaskMailbox localMailbox = mailbox;
 
+		// TODO_WU Mailbox 的线程检查 和 状态检查
 		Preconditions.checkState(
 			localMailbox.isMailboxThread(),
 			"Method must be executed by declared mailbox thread!");
@@ -183,8 +184,9 @@ public class MailboxProcessor implements Closeable {
 
 		final MailboxController defaultActionContext = new MailboxController(this);
 
-		// TODO_WU 正式工作 1.11 优化
+		// TODO_WU 如果有 mail 需要处理，处理完才会进行下面的 event processing
 		while (processMail(localMailbox)) {
+			// TODO_WU 进行 task 的 default action，也就是调用 processInput()
 			mailboxDefaultAction.runDefaultAction(defaultActionContext); // lock is acquired inside default action as needed
 		}
 	}
@@ -227,6 +229,7 @@ public class MailboxProcessor implements Closeable {
 	 * Intended use is to control this <code>MailboxProcessor</code>; no interaction with tasks should be performed;
 	 */
 	private void sendControlMail(RunnableWithException mail, String descriptionFormat, Object... descriptionArgs) {
+		// TODO_WU controlMail 都是最先被处理的
 		mailbox.putFirst(new Mail(
 				mail,
 				Integer.MAX_VALUE /*not used with putFirst*/,
@@ -242,17 +245,23 @@ public class MailboxProcessor implements Closeable {
 	 */
 	private boolean processMail(TaskMailbox mailbox) throws Exception {
 
+		// TODO_WU 进行此检查是一种优化，以仅在预期的热路径中读取易失性数据，只有在此之后才能获取锁定
 		// Doing this check is an optimization to only have a volatile read in the expected hot path, locks are only
 		// acquired after this point.
 		if (!mailbox.createBatch()) {
+			// TODO_WU 我们还可以直接返回true，因为对#isMailboxLoopRunning的所有更改都必须连接到mailbox.hasMail（）== true
 			// We can also directly return true because all changes to #isMailboxLoopRunning must be connected to
 			// mailbox.hasMail() == true.
 			return true;
 		}
 
+		// TODO_WU 以非阻塞方式接收邮件并执行
 		// Take mails in a non-blockingly and execute them.
 		Optional<Mail> maybeMail;
-		while (isMailboxLoopRunning() && (maybeMail = mailbox.tryTakeFromBatch()).isPresent()) {
+		while (isMailboxLoopRunning() && (maybeMail =
+			// TODO_WU batch队列中存储数据
+			mailbox.tryTakeFromBatch()).isPresent()) {
+			// TODO_WU 运行 Mail
 			maybeMail.get().run();
 		}
 
@@ -262,10 +271,12 @@ public class MailboxProcessor implements Closeable {
 			mailbox.take(MIN_PRIORITY).run();
 		}
 
+		// TODO_WU 只要 mailBox 还在运行，就返回 true
 		return isMailboxLoopRunning();
 	}
 
 	/**
+	 * // TODO_WU 调用此方法表示邮箱线程应（暂时）停止调用默认操作，例如因为当前没有可用的输入
 	 * Calling this method signals that the mailbox-thread should (temporarily) stop invoking the default action,
 	 * e.g. because there is currently no input available.
 	 */

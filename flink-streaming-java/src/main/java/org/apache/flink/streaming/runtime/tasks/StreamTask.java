@@ -290,7 +290,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 		this.recordWriter = createRecordWriterDelegate(configuration, environment);
 		// TODO_WU SynchronizedStreamTaskActionExecutor
 		this.actionExecutor = Preconditions.checkNotNull(actionExecutor);
-		// TODO_WU 初始化 MailboxProcessor，执行 StreamTask 的 processInput() 方法
+		// TODO_WU 初始化 MailboxProcessor，同时将processInput方法的执行放入待执行的任务队列
 		this.mailboxProcessor = new MailboxProcessor(this::processInput, mailbox, actionExecutor);
 		this.asyncExceptionHandler = new StreamTaskAsyncExceptionHandler(environment);
 		// TODO_WU 1.11 在streamtask初始化时createStateBackend(),new SubtaskCheckpointCoordinatorImpl等，

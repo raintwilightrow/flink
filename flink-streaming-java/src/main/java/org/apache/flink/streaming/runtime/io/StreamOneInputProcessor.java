@@ -66,8 +66,10 @@ public final class StreamOneInputProcessor<IN> implements StreamInputProcessor {
 
 	@Override
 	public InputStatus processInput() throws Exception {
+		// TODO_WU 处理输入
 		InputStatus status = input.emitNext(output);
 
+		// TODO_WU 会调用synchronized(lock)进行加锁处理，结束operatorChain中的所有操作
 		if (status == InputStatus.END_OF_INPUT) {
 			synchronized (lock) {
 				operatorChain.endHeadOperatorInput(1);

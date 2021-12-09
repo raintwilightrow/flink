@@ -90,11 +90,13 @@ public class SocketTextStreamFunction implements SourceFunction<String> {
 
 		while (isRunning) {
 
+			// TODO_WU 启动 Socket 客户端接收数据
 			try (Socket socket = new Socket()) {
 				currentSocket = socket;
 
 				LOG.info("Connecting to server socket " + hostname + ':' + port);
 				socket.connect(new InetSocketAddress(hostname, port), CONNECTION_TIMEOUT_TIME);
+				// TODO_WU 开始读取数据
 				try (BufferedReader reader = new BufferedReader(new InputStreamReader(socket.getInputStream()))) {
 
 					char[] cbuf = new char[8192];
@@ -102,6 +104,7 @@ public class SocketTextStreamFunction implements SourceFunction<String> {
 					while (isRunning && (bytesRead = reader.read(cbuf)) != -1) {
 						buffer.append(cbuf, 0, bytesRead);
 						int delimPos;
+						// TODO_WU 分隔符切断
 						while (buffer.length() >= delimiter.length() && (delimPos = buffer.indexOf(delimiter)) != -1) {
 							String record = buffer.substring(0, delimPos);
 							// truncate trailing carriage return
@@ -130,6 +133,7 @@ public class SocketTextStreamFunction implements SourceFunction<String> {
 			}
 		}
 
+		// TODO_WU 收集到数据 传给下游
 		// collect trailing data
 		if (buffer.length() > 0) {
 			ctx.collect(buffer.toString());
