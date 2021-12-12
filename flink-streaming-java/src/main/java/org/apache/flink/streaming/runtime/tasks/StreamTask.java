@@ -326,7 +326,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 		if (status == InputStatus.MORE_AVAILABLE && recordWriter.isAvailable()) {
 			return;
 		}
-		// TODO_WU 输入已经处理完毕
+		// TODO_WU 输入已经处理完毕 调用controller结束Task作业
 		if (status == InputStatus.END_OF_INPUT) {
 			controller.allActionsCompleted();
 			return;
@@ -1474,11 +1474,14 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 		List<RecordWriter<SerializationDelegate<StreamRecord<OUT>>>> recordWrites = createRecordWriters(
 			configuration,
 			environment);
+		// TODO_WU 创建SingleRecordWriter代理类返回
 		if (recordWrites.size() == 1) {
 			return new SingleRecordWriter<>(recordWrites.get(0));
 		} else if (recordWrites.size() == 0) {
+			// TODO_WU 创建NonRecordWriter代理类返回
 			return new NonRecordWriter<>();
 		} else {
+			// TODO_WU 创建返回MultipleRecordWriters代理类
 			return new MultipleRecordWriters<>(recordWrites);
 		}
 	}
@@ -1512,7 +1515,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 			String taskName,
 			long bufferTimeout) {
 
-		// TODO_WU 获取流分区器 在streamgraph中指定
+		// TODO_WU 1）获取流分区器 在streamgraph中指定
 		StreamPartitioner<OUT> outputPartitioner = null;
 
 		// Clones the partition to avoid multiple stream edges sharing the same stream partitioner,
@@ -1527,10 +1530,10 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 
 		LOG.debug("Using partitioner {} for output {} of task {}", outputPartitioner, outputIndex, taskName);
 
-		// TODO_WU 具体实现ConsumableNotifyingResultPartitionWriterDecorator，在task初始化时指定
+		// TODO_WU 2)具体实现ConsumableNotifyingResultPartitionWriterDecorator，在task初始化时指定
 		ResultPartitionWriter bufferWriter = environment.getWriter(outputIndex);
 
-		// TODO_WU 我们在这里用键组的数量（也就是最大并行度）初始化分区程序
+		// TODO_WU 3)用如果是为ConfigurableStreamPartitioner实现类，键组的数量（也就是最大并行度）初始化分区程序
 		// we initialize the partitioner here with the number of key groups (aka max. parallelism)
 		if (outputPartitioner instanceof ConfigurableStreamPartitioner) {
 			int numKeyGroups = bufferWriter.getNumTargetKeyGroups();
@@ -1539,7 +1542,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 			}
 		}
 
-		// TODO_WU 初始化RecordWriter
+		// TODO_WU 4)初始化RecordWriter
 		RecordWriter<SerializationDelegate<StreamRecord<OUT>>> output = new RecordWriterBuilder<SerializationDelegate<StreamRecord<OUT>>>()
 			.setChannelSelector(outputPartitioner)
 			.setTimeout(bufferTimeout)

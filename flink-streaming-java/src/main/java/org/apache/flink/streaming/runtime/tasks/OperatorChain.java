@@ -109,16 +109,18 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Strea
 			StreamTask<OUT, OP> containingTask,
 			RecordWriterDelegate<SerializationDelegate<StreamRecord<OUT>>> recordWriterDelegate) {
 
+		// TODO_WU 1）获取配置等
 		final ClassLoader userCodeClassloader = containingTask.getUserCodeClassLoader();
 		final StreamConfig configuration = containingTask.getConfiguration();
 
-		// TODO_WU 如果是 SourceStreamTask，构造 StreamOperatorFactory = SourceOperatorFactory
+		// TODO_WU 2）获取StreamOperatorFactory用于创建StreamOperator实例 例如是 SourceStreamTask，则获得 SourceOperatorFactory
 		StreamOperatorFactory<OUT> operatorFactory = configuration.getStreamOperatorFactory(userCodeClassloader);
 
-		// TODO_WU chainedConfigs的配置决定了算子之间Output接口的具体实现
+		// TODO_WU 3）chainedConfigs的配置决定了算子之间Output接口的具体实现
 		// we read the chained configs, and the order of record writer registrations by output name
 		Map<Integer, StreamConfig> chainedConfigs = configuration.getTransitiveChainedTaskConfigsWithSelf(userCodeClassloader);
 
+		// TODO_WU 4）
 		// create the final output stream writers
 		// we iterate through all the out edges from this job vertex and create a stream output
 		List<StreamEdge> outEdgesInOrder = configuration.getOutEdgesInOrder(userCodeClassloader);
@@ -126,6 +128,7 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Strea
 		// TODO_WU 初始化得到 output 输出数组集合
 		this.streamOutputs = new RecordWriterOutput<?>[outEdgesInOrder.size()];
 
+		// TODO_WU 5）创建OperatorChain内部算子之间的上下游连接
 		// from here on, we need to make sure that the output writers are shut down again on failure
 		boolean success = false;
 		try {
@@ -159,6 +162,7 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Strea
 			if (operatorFactory != null) {
 				WatermarkGaugeExposingOutput<StreamRecord<OUT>> output = getChainEntryPoint();
 
+				// TODO_WU 6）单独创建headOperator
 				headOperator = StreamOperatorFactoryUtil.createOperator(
 						operatorFactory,
 						containingTask,
@@ -182,7 +186,7 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Strea
 			// make sure we clean up after ourselves in case of a failure after acquiring
 			// the first resources
 			if (!success) {
-				// TODO_WU 关闭已经创建的RecordWriterOutput实例，防止出现内存泄漏
+				// TODO_WU 7）如果OperatorChain构建失败，关闭已经创建的RecordWriterOutput实例，防止出现内存泄漏
 				for (RecordWriterOutput<?> output : this.streamOutputs) {
 					if (output != null) {
 						output.close();
@@ -508,6 +512,7 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Strea
 	 * @param <T> The type of the elements that can be emitted.
 	 */
 	public interface WatermarkGaugeExposingOutput<T> extends Output<T> {
+		// TODO_WU 监控最新的Watermark
 		Gauge<Long> getWatermarkGauge();
 	}
 

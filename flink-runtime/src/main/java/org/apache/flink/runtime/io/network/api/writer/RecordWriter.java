@@ -48,9 +48,12 @@ import static org.apache.flink.util.Preconditions.checkState;
 /**
  * An abstract record-oriented runtime result writer.
  *
+ * // TODO_WU  RecordWriter包装运行时的 {@link ResultPartitionWriter} 并负责将记录序列化为缓冲区
  * <p>The RecordWriter wraps the runtime's {@link ResultPartitionWriter} and takes care of
  * serializing records into buffers.
  *
+ * // TODO_WU Important： 用{@link #emit（IOReadableWritable）}写入所有记录后，必须调用{@link #flushAll（）}
+ * 确保将所有产生的记录写入输出流（包括*部分填充的记录）
  * <p><strong>Important</strong>: it is necessary to call {@link #flushAll()} after
  * all records have been written with {@link #emit(IOReadableWritable)}. This
  * ensures that all produced records are written to the output stream (incl.
@@ -130,19 +133,19 @@ public abstract class RecordWriter<T extends IOReadableWritable> implements Avai
 	 * @return <tt>true</tt> if the intermediate serialization buffer should be pruned
 	 */
 	protected boolean copyFromSerializerToTargetChannel(int targetChannel) throws IOException, InterruptedException {
-		// TODO_WU 对序列化器进行Reset操作，初始化initial position
+		// TODO_WU 1)对序列化器进行Reset操作，初始化initial position
 		// We should reset the initial position of the intermediate serialization buffer before
 		// copying, so the serialization results can be copied to multiple target buffers.
 		serializer.reset();
 
 		boolean pruneTriggered = false;
-		// TODO_WU 获取该 targetChannel 对应的 BufferBuilder|创建BufferBuilder
+		// TODO_WU 2)获取该 targetChannel 对应的 BufferBuilder|创建BufferBuilder
 		BufferBuilder bufferBuilder = getBufferBuilder(targetChannel);
-		// TODO_WU 调用序列化器将数据写入bufferBuilder
+		// TODO_WU 3)调用序列化器将数据写入bufferBuilder
 		SerializationResult result = serializer.copyToBufferBuilder(bufferBuilder);
-		// TODO_WU 检验 buffer 是否写满
+		// TODO_WU 4)检验 buffer 是否写满
 		while (result.isFullBuffer()) {
-			// TODO_WU buffer 写满了，调用 bufferBuilder.finish 方法
+			// TODO_WU 4-1)buffer 写满了，调用 bufferBuilder.finish 方法
 			finishBufferBuilder(bufferBuilder);
 
 			// If this was a full record, we are done. Not breaking out of the loop at this point
@@ -154,13 +157,13 @@ public abstract class RecordWriter<T extends IOReadableWritable> implements Avai
 				break;
 			}
 
-			// TODO_WU 当前这条记录没有写完，申请新的 buffer 写入
+			// TODO_WU 4-2)当前这条记录没有写完，申请新的 buffer 写入
 			bufferBuilder = requestNewBufferBuilder(targetChannel);
 			result = serializer.copyToBufferBuilder(bufferBuilder);
 		}
 		checkState(!serializer.hasSerializedData(), "All data should be written at once");
 
-		// TODO_WU 如果指定的flushAlways，则直接调用flushTargetPartition将数据写入ResultPartition
+		// TODO_WU 5)如果指定的flushAlways，则直接调用flushTargetPartition将数据写入ResultPartition
 		if (flushAlways) {
 			flushTargetPartition(targetChannel);
 		}

@@ -173,20 +173,23 @@ public class MailboxProcessor implements Closeable {
 	 */
 	public void runMailboxLoop() throws Exception {
 
+		// TODO_WU 1)获取最新的TaskMailbox并设定为本地TaskMailbox
 		final TaskMailbox localMailbox = mailbox;
 
-		// TODO_WU Mailbox 的线程检查 和 状态检查
+		// TODO_WU 2)检查MailBox线程是否为MailboxThread，确认TaskMailbox.State是否为开启状态
 		Preconditions.checkState(
 			localMailbox.isMailboxThread(),
 			"Method must be executed by declared mailbox thread!");
 
 		assert localMailbox.getState() == TaskMailbox.State.OPEN : "Mailbox must be opened!";
 
+		// TODO_WU 3)将当前MailboxProcessor实例作为参数创建MailboxController
+		// TODO_WU MailboxController实现对Mailbox的循环控制以及对MailboxDefaultAction的暂停和恢复操作
 		final MailboxController defaultActionContext = new MailboxController(this);
 
-		// TODO_WU 如果有 mail 需要处理，处理完才会进行下面的 event processing
+		// TODO_WU 4)启动循环 如果有 mail 需要处理，处理完才会进行下面的 event processing
 		while (processMail(localMailbox)) {
-			// TODO_WU 进行 task 的 default action，也就是调用 processInput()
+			// TODO_WU 进行 task 的 default action，也就是调用 StreamTask.processInput()
 			mailboxDefaultAction.runDefaultAction(defaultActionContext); // lock is acquired inside default action as needed
 		}
 	}

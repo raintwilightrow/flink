@@ -89,15 +89,16 @@ public class OneInputStreamTask<IN, OUT> extends StreamTask<OUT, OneInputStreamO
 		int numberOfInputs = configuration.getNumberOfInputs();
 
 		if (numberOfInputs > 0) {
-			// TODO_WU 创建 CheckpointedInputGate
+			// TODO_WU 创建 CheckpointedInputGate 实际上是对InputGate进行封装，实现对Checkpoint Barrier对齐的功能
 			CheckpointedInputGate inputGate = createCheckpointedInputGate();
 			TaskIOMetricGroup taskIOMetricGroup = getEnvironment().getMetricGroup().getIOMetricGroup();
 			taskIOMetricGroup.gauge("checkpointAlignmentTime", inputGate::getAlignmentDurationNanos);
 
-			// TODO_WU StreamTaskNetworkOutput
+			// TODO_WU StreamTaskNetworkOutput 在StreamTaskInput中会将接入的数据通过DataOutput组件输出到算子链的HeaderOperator中
 			DataOutput<IN> output = createDataOutput();
-			// TODO_WU StreamTaskNetworkInput
+			// TODO_WU StreamTaskNetworkInput 将InputGate和DataOutput作为内部成员，完成对数据的接入和输出
 			StreamTaskInput<IN> input = createTaskInput(inputGate, output);
+			// TODO_WU StreamOneInputProcessor会被Task线程模型调度(MailBox)并执行，实现周期性地从StreamTaskInput组件中读取数据元素并处理
 			inputProcessor = new StreamOneInputProcessor<>(
 				input,
 				output,
@@ -125,6 +126,7 @@ public class OneInputStreamTask<IN, OUT> extends StreamTask<OUT, OneInputStreamO
 	private DataOutput<IN> createDataOutput() {
 		return new StreamTaskNetworkOutput<>(
 			headOperator,
+			// TODO_WU getStreamStatusMaintainer return operatorChain
 			getStreamStatusMaintainer(),
 			getCheckpointLock(),
 			inputWatermarkGauge,
@@ -136,6 +138,7 @@ public class OneInputStreamTask<IN, OUT> extends StreamTask<OUT, OneInputStreamO
 		StatusWatermarkValve statusWatermarkValve = new StatusWatermarkValve(numberOfInputChannels, output);
 
 		TypeSerializer<IN> inSerializer = configuration.getTypeSerializerIn1(getUserCodeClassLoader());
+		// TODO_WU 最后返回： StreamTaskNetworkInput
 		return new StreamTaskNetworkInput<>(
 			inputGate,
 			inSerializer,

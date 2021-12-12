@@ -92,15 +92,20 @@ public final class ChannelSelectorRecordWriter<T extends IOReadableWritable> ext
 		if (bufferBuilders[targetChannel] != null) {
 			return bufferBuilders[targetChannel];
 		} else {
+			// TODO_WU 请求新的 BufferBuilder，用于写入数据
 			return requestNewBufferBuilder(targetChannel);
 		}
 	}
 
 	@Override
 	public BufferBuilder requestNewBufferBuilder(int targetChannel) throws IOException, InterruptedException {
+		// TODO_WU 1)检查bufferBuilders[]的状态
 		checkState(bufferBuilders[targetChannel] == null || bufferBuilders[targetChannel].isFinished());
 
+		// TODO_WU 2)从 ResultPartition 的 LocalBufferPool 中请求 BufferBuilder
+		// 如果当前没有可用的，会阻塞
 		BufferBuilder bufferBuilder = targetPartition.getBufferBuilder();
+		// TODO_WU 3)添加一个BufferConsumer，用于读取写入到 MemorySegment 的数据
 		targetPartition.addBufferConsumer(bufferBuilder.createBufferConsumer(), targetChannel);
 		bufferBuilders[targetChannel] = bufferBuilder;
 		return bufferBuilder;

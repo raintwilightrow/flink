@@ -102,11 +102,11 @@ public class RecordWriterOutput<OUT> implements OperatorChain.WatermarkGaugeExpo
 	}
 
 	private <X> void pushToRecordWriter(StreamRecord<X> record) {
-		// TODO_WU 接入的数据元素进行序列化操作，将数据元素转换成二进制格式
+		// TODO_WU 1)接入的数据元素进行序列化操作，将数据元素转换成二进制格式
 		serializationDelegate.setInstance(record);
 
 		try {
-			// TODO_WU 将序列化后的二进制数据输出到下游网络中
+			// TODO_WU 2)将序列化后的二进制数据输出到下游网络中
 			recordWriter.emit(serializationDelegate);
 		}
 		catch (Exception e) {

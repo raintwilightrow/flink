@@ -132,14 +132,17 @@ public final class StreamTaskNetworkInput<T> implements StreamTaskInput<T> {
 				if (result.isFullRecord()) {
 					// TODO_WU 计算逻辑处理
 					processElement(deserializationDelegate.getInstance(), output);
+					// TODO_WU 处理完毕后退出循环并返回MORE_AVAILABLE状态，继续等待新的数据接入
 					return InputStatus.MORE_AVAILABLE;
 				}
 			}
 
 			// TODO_WU 从checkpointedInputGate中拉取数据
 			Optional<BufferOrEvent> bufferOrEvent = checkpointedInputGate.pollNext();
+			// TODO_WU 网络传输的数据既含有Buffer类型数据，也含有事件数据(AbstractEvent的实现类)
+
 			if (bufferOrEvent.isPresent()) {
-				// TODO_WU 处理数据（读取到的数据，变成buffer，进行序列化）
+				// TODO_WU 处理数据（读取到的数据，变成buffer，放到currentRecordDeserializer进行序列化）
 				processBufferOrEvent(bufferOrEvent.get());
 			} else {
 				// TODO_WU 如果checkpointedInputGate中已经没有数据，则返回END_OF_INPUT结束计算，否则返回NOTHING_AVAILABLE
@@ -177,6 +180,7 @@ public final class StreamTaskNetworkInput<T> implements StreamTaskInput<T> {
 			checkState(currentRecordDeserializer != null,
 				"currentRecordDeserializer has already been released");
 
+			// TODO_WU 对buffer数据进行反序列化处理，转换成具体的StreamRecord
 			currentRecordDeserializer.setNextBuffer(bufferOrEvent.getBuffer());
 		}
 		else {
