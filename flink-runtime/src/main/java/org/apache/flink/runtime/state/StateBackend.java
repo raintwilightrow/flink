@@ -37,17 +37,20 @@ import java.util.Collection;
  * checkpointed. Different State Backends store their state in different fashions, and use
  * different data structures to hold the state of a running application.
  *
+ * TODO_WU 在 TaskManager 的内存中保持工作状态，并在 JobManager 的内存中存储检查点 一般在开发调试中使用
  * <p>For example, the {@link org.apache.flink.runtime.state.memory.MemoryStateBackend memory state backend}
  * keeps working state in the memory of the TaskManager and stores checkpoints in the memory of the
  * JobManager. The backend is lightweight and without additional dependencies, but not highly available
  * and supports only small state.
  *
+ * TODO_WU 将工作状态保存在TaskManager的内存中，并将状态检查点存储在文件系统中 存储 state 量比较大的，window 窗口很长的一些 job 的 state
  * <p>The {@link org.apache.flink.runtime.state.filesystem.FsStateBackend file system state backend}
  * keeps working state in the memory of the TaskManager and stores state checkpoints in a filesystem
  * (typically a replicated highly-available filesystem, like <a href="https://hadoop.apache.org/">HDFS</a>,
  * <a href="https://ceph.com/">Ceph</a>, <a href="https://aws.amazon.com/documentation/s3/">S3</a>,
  * <a href="https://cloud.google.com/storage/">GCS</a>, etc).
- * 
+ *
+ * TODO_WU 将工作状态存储在 RocksDB 中，并将状态检查点存储在文件系统中 速度快，GC少，支持增量cp
  * <p>The {@code RocksDBStateBackend} stores working state in <a href="http://rocksdb.org/">RocksDB</a>,
  * and checkpoints the state by default to a filesystem (similar to the {@code FsStateBackend}).
  * 
@@ -80,7 +83,7 @@ import java.util.Collection;
  * configurations) which makes it easier to be serializable.
  *
  * <h2>Thread Safety</h2>
- * 
+ * TODO_WU 多个线程可能正在同时创建 streams and keyed-/operator state backends 状态后端
  * State backend implementations have to be thread-safe. Multiple threads may be creating
  * streams and keyed-/operator state backends concurrently.
  */

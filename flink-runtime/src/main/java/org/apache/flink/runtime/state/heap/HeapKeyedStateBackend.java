@@ -67,6 +67,8 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 /**
+ * TODO_WU {@link AbstractKeyedStateBackend}，它将状态保留在 Java 堆上，并将在检查点时将状态序列化为 {@link CheckpointStreamFactory} 提供的流
+ *
  * A {@link AbstractKeyedStateBackend} that keeps state on the Java Heap and will serialize state to
  * streams provided by a {@link CheckpointStreamFactory} upon checkpointing.
  *
@@ -76,6 +78,7 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
 	private static final Logger LOG = LoggerFactory.getLogger(HeapKeyedStateBackend.class);
 
+	// TODO_WU 同的 StateDescriptor 创建不同的 StateFactory 存储StateDescriptor的ClassName和StateFactory
 	private static final Map<Class<? extends StateDescriptor>, StateFactory> STATE_FACTORIES =
 		Stream.of(
 			Tuple2.of(ValueStateDescriptor.class, (StateFactory) HeapValueState::create),
@@ -87,6 +90,7 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		).collect(Collectors.toMap(t -> t.f0, t -> t.f1));
 
 	/**
+	 * TODO_WU 根据 checkpoint 同步或异步配置，创建的 StateTable 分别为 NestedMapsStateTable 和 CopyOnWriteStateTable
 	 * Map of registered Key/Value states.
 	 */
 	private final Map<String, StateTable<K, ?, ?>> registeredKVStates;
@@ -264,14 +268,17 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		@Nonnull TypeSerializer<N> namespaceSerializer,
 		@Nonnull StateDescriptor<S, SV> stateDesc,
 		@Nonnull StateSnapshotTransformFactory<SEV> snapshotTransformFactory) throws Exception {
+		// TODO_WU 根据State的类名获取相应的StateFactory
 		StateFactory stateFactory = STATE_FACTORIES.get(stateDesc.getClass());
 		if (stateFactory == null) {
 			String message = String.format("State %s is not supported by %s",
 				stateDesc.getClass(), this.getClass());
 			throw new FlinkRuntimeException(message);
 		}
+		// TODO_WU 尝试注册和创建StateTable
 		StateTable<K, N, SV> stateTable = tryRegisterStateTable(
 			namespaceSerializer, stateDesc, getStateSnapshotTransformFactory(stateDesc, snapshotTransformFactory));
+		// TODO_WU 创建状态
 		return stateFactory.createState(stateDesc, stateTable, getKeySerializer());
 	}
 

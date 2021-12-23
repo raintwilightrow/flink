@@ -1034,6 +1034,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 
 		for (StreamOperator<?> operator : allOperators) {
 			if (null != operator) {
+				// TODO_WU 初始化状态或state恢复
 				operator.initializeState();
 				operator.open();
 			}

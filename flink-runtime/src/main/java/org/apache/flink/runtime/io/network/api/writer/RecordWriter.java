@@ -109,7 +109,7 @@ public abstract class RecordWriter<T extends IOReadableWritable> implements Avai
 				DEFAULT_OUTPUT_FLUSH_THREAD_NAME + " for " + taskName;
 
 			// TODO_WU 根据超时时间创建一个定时 flush 输出 buffer 的线程
-			outputFlusher = new OutputFlusher(threadName, timeout);
+			outputFlusher = new OutputFlusher(ClusterEntrypointthreadName, timeout);
 			outputFlusher.start();
 		}
 	}

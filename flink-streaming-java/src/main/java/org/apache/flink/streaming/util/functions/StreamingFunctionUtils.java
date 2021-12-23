@@ -157,6 +157,7 @@ public final class StreamingFunctionUtils {
 
 		while (true) {
 
+			// TODO_WU 执行 tryRestoreFunction 尝试恢复状态
 			if (tryRestoreFunction(context, userFunction)) {
 				break;
 			}

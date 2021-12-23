@@ -267,18 +267,23 @@ public abstract class AbstractKeyedStateBackend<K> implements
 	public <N, S extends State, V> S getOrCreateKeyedState(
 			final TypeSerializer<N> namespaceSerializer,
 			StateDescriptor<S, V> stateDescriptor) throws Exception {
+		// TODO_WU 判断namespaceSerializer和keySerializer不为空
 		checkNotNull(namespaceSerializer, "Namespace serializer");
 		checkNotNull(keySerializer, "State key serializer has not been configured in the config. " +
 				"This operation cannot use partitioned state.");
 
+		// TODO_WU 从keyValueStatesByName集合中获取kvState
 		InternalKvState<K, ?, ?> kvState = keyValueStatesByName.get(stateDescriptor.getName());
+		// TODO_WU 如果kvState为空，则调用TtlStateFactory创建新的kvState
 		if (kvState == null) {
 			if (!stateDescriptor.isSerializerInitialized()) {
 				stateDescriptor.initializeSerializerUnlessSet(executionConfig);
 			}
 			kvState = TtlStateFactory.createStateAndWrapWithTtlIfEnabled(
 				namespaceSerializer, stateDescriptor, this, ttlTimeProvider);
+			// TODO_WU 将新的kvState放置在keyValueStatesByName集合中
 			keyValueStatesByName.put(stateDescriptor.getName(), kvState);
+			// TODO_WU 设定QueryableState
 			publishQueryableStateIfEnabled(stateDescriptor, kvState);
 		}
 		return (S) kvState;
@@ -292,6 +297,7 @@ public abstract class AbstractKeyedStateBackend<K> implements
 				throw new IllegalStateException("State backend has not been initialized for job.");
 			}
 			String name = stateDescriptor.getQueryableStateName();
+			// TODO_WU 注册
 			kvStateRegistry.registerKvState(keyGroupRange, name, kvState);
 		}
 	}
@@ -312,11 +318,13 @@ public abstract class AbstractKeyedStateBackend<K> implements
 
 		checkNotNull(namespace, "Namespace");
 
+		// TODO_WU 通过判断lastName是否与stateDescriptor中的名称一致，选择是否直接返回lastState
 		if (lastName != null && lastName.equals(stateDescriptor.getName())) {
 			lastState.setCurrentNamespace(namespace);
 			return (S) lastState;
 		}
 
+		// TODO_WU 通过keyValueStatesByName集合检索是否含有对应名称的State，如果有则返回状态
 		InternalKvState<K, ?, ?> previous = keyValueStatesByName.get(stateDescriptor.getName());
 		if (previous != null) {
 			lastState = previous;
@@ -325,7 +333,9 @@ public abstract class AbstractKeyedStateBackend<K> implements
 			return (S) previous;
 		}
 
+		// TODO_WU 获取或创建新的状态
 		final S state = getOrCreateKeyedState(namespaceSerializer, stateDescriptor);
+		// TODO_WU 将state转换为InternalKvState类型
 		final InternalKvState<K, N, ?> kvState = (InternalKvState<K, N, ?>) state;
 
 		lastName = stateDescriptor.getName();

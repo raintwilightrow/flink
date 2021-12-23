@@ -41,6 +41,7 @@ public final class PartitionableListState<S> implements ListState<S> {
 	private RegisteredOperatorStateBackendMetaInfo<S> stateMetaInfo;
 
 	/**
+	 * TODO_WU 管理状态的数据结构： ArrayList
 	 * The internal list the holds the elements of the state
 	 */
 	private final ArrayList<S> internalList;

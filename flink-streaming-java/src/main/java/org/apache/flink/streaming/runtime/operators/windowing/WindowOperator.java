@@ -720,6 +720,7 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 		@Override
 		protected  <S extends State> S getPartitionedState(StateDescriptor<S, ?> stateDescriptor) throws Exception {
 			return keyedStateBackend.getPartitionedState(
+				// TODO_WU namespace
 				window,
 				windowSerializer,
 				stateDescriptor);

@@ -127,7 +127,7 @@ public class StreamTaskStateInitializerImpl implements StreamTaskStateInitialize
 
 		try {
 
-			// -------------- Keyed State Backend --------------
+			// -------------- Keyed State Backend --------------KeyedState的状态管理后端，提供创建和管理KeyedState的方法
 			keyedStatedBackend = keyedStatedBackend(
 				keySerializer,
 				operatorIdentifierText,
@@ -135,17 +135,18 @@ public class StreamTaskStateInitializerImpl implements StreamTaskStateInitialize
 				streamTaskCloseableRegistry,
 				metricGroup);
 
-			// -------------- Operator State Backend --------------
+			// -------------- Operator State Backend --------------OperatorState的状态管理后端，提供获取和管理OperatorState的接口
 			operatorStateBackend = operatorStateBackend(
 				operatorIdentifierText,
 				prioritizedOperatorSubtaskStates,
 				streamTaskCloseableRegistry);
 
-			// -------------- Raw State Streams --------------
+			// -------------- Raw State Streams --------------提供创建和获取原生KeyedState的方法
 			rawKeyedStateInputs = rawKeyedStateInputs(
 				prioritizedOperatorSubtaskStates.getPrioritizedRawKeyedState().iterator());
 			streamTaskCloseableRegistry.registerCloseable(rawKeyedStateInputs);
 
+			// TODO_WU 创建StatePartitionStreamProvider实例 提供创建和获取原生OperatorState的方法
 			rawOperatorStateInputs = rawOperatorStateInputs(
 				prioritizedOperatorSubtaskStates.getPrioritizedRawOperatorState().iterator());
 			streamTaskCloseableRegistry.registerCloseable(rawOperatorStateInputs);

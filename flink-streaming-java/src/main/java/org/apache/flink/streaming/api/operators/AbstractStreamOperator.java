@@ -251,6 +251,7 @@ public abstract class AbstractStreamOperator<OUT>
 		final StreamTaskStateInitializer streamTaskStateManager =
 			Preconditions.checkNotNull(containingTask.createStreamTaskStateInitializer());
 
+		// TODO_WU 创建 StreamOperatorStateContext， 内部状态存储后端环境信息，执行各种 state 的恢复
 		final StreamOperatorStateContext context =
 			streamTaskStateManager.streamOperatorStateContext(
 				getOperatorID(),
@@ -261,19 +262,23 @@ public abstract class AbstractStreamOperator<OUT>
 				streamTaskCloseableRegistry,
 				metrics);
 
+		// TODO_WU 1.11 中使用StreamOperatorStateHandler封装状态的处理
 		this.operatorStateBackend = context.operatorStateBackend();
 		this.keyedStateBackend = context.keyedStateBackend();
 
 		if (keyedStateBackend != null) {
+			// TODO_WU keyedStateStore = DefaultKeyedStateStore
 			this.keyedStateStore = new DefaultKeyedStateStore(keyedStateBackend, getExecutionConfig());
 		}
 
+		// TODO_WU 用于在当前算子中注册和管理定时器
 		timeServiceManager = context.internalTimerServiceManager();
 
 		CloseableIterable<KeyGroupStatePartitionStreamProvider> keyedStateInputs = context.rawKeyedStateInputs();
 		CloseableIterable<StatePartitionStreamProvider> operatorStateInputs = context.rawOperatorStateInputs();
 
 		try {
+			// TODO_WU 初始化得到 ： StateInitializationContextImpl
 			StateInitializationContext initializationContext = new StateInitializationContextImpl(
 				context.isRestored(), // information whether we restore or start for the first time
 				operatorStateBackend, // access to operator state backend
@@ -281,6 +286,7 @@ public abstract class AbstractStreamOperator<OUT>
 				keyedStateInputs, // access to keyed state stream
 				operatorStateInputs); // access to operator state stream
 
+			// TODO_WU 初始化状态
 			initializeState(initializationContext);
 		} finally {
 			closeFromRegistry(operatorStateInputs, streamTaskCloseableRegistry);

@@ -139,8 +139,11 @@ public class StreamingRuntimeContext extends AbstractRuntimeUDFContext {
 
 	@Override
 	public <T> ValueState<T> getState(ValueStateDescriptor<T> stateProperties) {
+		// TODO_WU 对ValueStateDescriptor进行校验，然后获取算子中的KeyedStateStore
 		KeyedStateStore keyedStateStore = checkPreconditionsAndGetKeyedStateStore(stateProperties);
+		// TODO_WU 初始化stateProperties中的序列化类
 		stateProperties.initializeSerializerUnlessSet(getExecutionConfig());
+		// TODO_WU 获取对应的State
 		return keyedStateStore.getState(stateProperties);
 	}
 

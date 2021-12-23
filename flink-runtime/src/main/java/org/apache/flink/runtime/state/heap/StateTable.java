@@ -40,6 +40,7 @@ import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
 /**
+ * TODO_WU 状态表的基础类 对状态的访问通常受当前活动密钥的限制
  * Base class for state tables. Accesses to state are typically scoped by the currently active key, as provided
  * through the {@link InternalKeyContext}.
  *

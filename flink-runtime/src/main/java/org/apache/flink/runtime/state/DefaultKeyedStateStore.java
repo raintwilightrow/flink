@@ -40,6 +40,7 @@ import org.apache.flink.util.Preconditions;
 import static java.util.Objects.requireNonNull;
 
 /**
+ * TODO_WU 当前将状态注册转发到 {@link RuntimeContext}的 KeyedStateStore 的默认实现
  * Default implementation of KeyedStateStore that currently forwards state registration to a {@link RuntimeContext}.
  */
 public class DefaultKeyedStateStore implements KeyedStateStore {
@@ -56,6 +57,7 @@ public class DefaultKeyedStateStore implements KeyedStateStore {
 	public <T> ValueState<T> getState(ValueStateDescriptor<T> stateProperties) {
 		requireNonNull(stateProperties, "The state properties must not be null");
 		try {
+			// TODO_WU 确保状态数据使用的序列化器已经被正常初始化
 			stateProperties.initializeSerializerUnlessSet(executionConfig);
 			return getPartitionedState(stateProperties);
 		} catch (Exception e) {
@@ -69,6 +71,7 @@ public class DefaultKeyedStateStore implements KeyedStateStore {
 		try {
 			stateProperties.initializeSerializerUnlessSet(executionConfig);
 			ListState<T> originalState = getPartitionedState(stateProperties);
+			// TODO_WU 对ListState和MapState进行包装
 			return new UserFacingListState<>(originalState);
 		} catch (Exception e) {
 			throw new RuntimeException("Error while getting state", e);

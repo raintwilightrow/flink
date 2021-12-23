@@ -65,6 +65,7 @@ public class TtlStateFactory<K, N, SV, TTLSV, S extends State, IS extends S> {
 		Preconditions.checkNotNull(stateDesc);
 		Preconditions.checkNotNull(stateBackend);
 		Preconditions.checkNotNull(timeProvider);
+		// TODO_WU 判断是否需要创建TtlState
 		return  stateDesc.getTtlConfig().isEnabled() ?
 			new TtlStateFactory<K, N, SV, TTLSV, S, IS>(
 				namespaceSerializer, stateDesc, stateBackend, timeProvider)
@@ -132,6 +133,7 @@ public class TtlStateFactory<K, N, SV, TTLSV, S extends State, IS extends S> {
 
 	@SuppressWarnings("unchecked")
 	private IS createValueState() throws Exception {
+		// TODO_WU 再次包装Descriptor 以记录timestamp
 		ValueStateDescriptor<TtlValue<SV>> ttlDescriptor = new ValueStateDescriptor<>(
 			stateDesc.getName(), new TtlSerializer<>(LongSerializer.INSTANCE, stateDesc.getSerializer()));
 		return (IS) new TtlValueState<>(createTtlStateContext(ttlDescriptor));

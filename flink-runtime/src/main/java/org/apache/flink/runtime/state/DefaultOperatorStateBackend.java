@@ -84,6 +84,7 @@ public class DefaultOperatorStateBackend implements OperatorStateBackend {
 	/**
 	 * Cache of already accessed states.
 	 *
+	 * 用于快速获取状态的缓存实现，registeredOperatorStates可以填充恢复的状态数据，但accessedStatesByName的缓存集合在系统重启后就会置空
 	 * <p>In contrast to {@link #registeredOperatorStates} which may be repopulated
 	 * with restored state, this map is always empty at the beginning.
 	 *
@@ -211,6 +212,7 @@ public class DefaultOperatorStateBackend implements OperatorStateBackend {
 
 	@Override
 	public <S> ListState<S> getListState(ListStateDescriptor<S> stateDescriptor) throws Exception {
+		// TODO_WU ListState 和 Union ListState 的底层存储是一致的，只是在状态恢复的时候状态的分配模式不一致
 		return getListState(stateDescriptor, OperatorStateHandle.Mode.SPLIT_DISTRIBUTE);
 	}
 
@@ -272,8 +274,10 @@ public class DefaultOperatorStateBackend implements OperatorStateBackend {
 		String name = Preconditions.checkNotNull(stateDescriptor.getName());
 
 		@SuppressWarnings("unchecked")
+			// TODO_WU 从accessedStatesByName缓存集合中获取已经创建的PartitionableListState
 		PartitionableListState<S> previous = (PartitionableListState<S>) accessedStatesByName.get(name);
 		if (previous != null) {
+			// TODO_WU 与之前创建的状态名称和类型进行对比，如果匹配成功则直接返回previous状态
 			checkStateNameAndMode(
 					previous.getStateMetaInfo().getName(),
 					name,
@@ -282,19 +286,24 @@ public class DefaultOperatorStateBackend implements OperatorStateBackend {
 			return previous;
 		}
 
+		// TODO_WU 中没有获取到创建的算子状态，则创建新的PartitionableListState
 		// end up here if its the first time access after execution for the
 		// provided state name; check compatibility of restored state, if any
 		// TODO with eager registration in place, these checks should be moved to restore()
 
+		// TODO_WU 初始化状态的序列化器
 		stateDescriptor.initializeSerializerUnlessSet(getExecutionConfig());
+		// TODO_WU 获取状态中数据元素的序列化类
 		TypeSerializer<S> partitionStateSerializer = Preconditions.checkNotNull(stateDescriptor.getElementSerializer());
 
 		@SuppressWarnings("unchecked")
+			// TODO_WU 从registeredOperatorStates集合中获取OperatorState
 		PartitionableListState<S> partitionableListState = (PartitionableListState<S>) registeredOperatorStates.get(name);
 
 		if (null == partitionableListState) {
 			// no restored state for the state name; simply create new state holder
 
+			// TODO_WU 创建新的PartitionableListState，并将OperatorState存储到registeredOperatorStates集合中
 			partitionableListState = new PartitionableListState<>(
 				new RegisteredOperatorStateBackendMetaInfo<>(
 					name,
@@ -305,6 +314,7 @@ public class DefaultOperatorStateBackend implements OperatorStateBackend {
 		} else {
 			// has restored state; check compatibility of new state access
 
+			// TODO_WU 法与之前创建的状态名称和类型进行对比
 			checkStateNameAndMode(
 					partitionableListState.getStateMetaInfo().getName(),
 					name,
@@ -314,6 +324,7 @@ public class DefaultOperatorStateBackend implements OperatorStateBackend {
 			RegisteredOperatorStateBackendMetaInfo<S> restoredPartitionableListStateMetaInfo =
 				partitionableListState.getStateMetaInfo();
 
+			// TODO_WU 检查newPartitionStateSerializer是否和partitionableListState中的TypeSerializer兼容
 			// check compatibility to determine if new serializers are incompatible
 			TypeSerializer<S> newPartitionStateSerializer = partitionStateSerializer.duplicate();
 
@@ -323,9 +334,11 @@ public class DefaultOperatorStateBackend implements OperatorStateBackend {
 				throw new StateMigrationException("The new state typeSerializer for operator state must not be incompatible.");
 			}
 
+			// TODO_WU 设定partitionableListState的MetaInfo信息
 			partitionableListState.setStateMetaInfo(restoredPartitionableListStateMetaInfo);
 		}
 
+		// TODO_WU 将partitionableListState放入accessedStatesByName缓存
 		accessedStatesByName.put(name, partitionableListState);
 		return partitionableListState;
 	}
