@@ -495,6 +495,7 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 		@Nonnull Collection<KeyedStateHandle> stateHandles,
 		CloseableRegistry cancelStreamRegistry) throws IOException {
 
+		// TODO_WU 获取临时目录 并确保rocksdb已经加载
 		// first, make sure that the RocksDB JNI library is loaded
 		// we do this explicitly here to have better error handling
 		String tempDir = env.getTaskManagerInfo().getTmpDirectories()[0];

@@ -239,8 +239,10 @@ public class StreamTaskStateInitializerImpl implements StreamTaskStateInitialize
 		// input stream opened for serDe during restore.
 		CloseableRegistry cancelStreamRegistryForRestore = new CloseableRegistry();
 		backendCloseableRegistry.registerCloseable(cancelStreamRegistryForRestore);
+		// TODO_WU 创建 BackendRestorerProcedure
 		BackendRestorerProcedure<OperatorStateBackend, OperatorStateHandle> backendRestorer =
 			new BackendRestorerProcedure<>(
+				// TODO_WU 创建 StateBackend
 				(stateHandles) -> stateBackend.createOperatorStateBackend(
 					environment,
 					operatorIdentifierText,
@@ -249,6 +251,7 @@ public class StreamTaskStateInitializerImpl implements StreamTaskStateInitialize
 				backendCloseableRegistry,
 				logDescription);
 
+		// TODO_WU 恢复状态
 		try {
 			return backendRestorer.createAndRestore(
 				prioritizedOperatorSubtaskStates.getPrioritizedManagedOperatorState());
@@ -274,6 +277,7 @@ public class StreamTaskStateInitializerImpl implements StreamTaskStateInitialize
 
 		TaskInfo taskInfo = environment.getTaskInfo();
 
+		// TODO_WU 获取 KeyGroupRange
 		final KeyGroupRange keyGroupRange = KeyGroupRangeAssignment.computeKeyGroupRangeForOperatorIndex(
 			taskInfo.getMaxNumberOfParallelSubtasks(),
 			taskInfo.getNumberOfParallelSubtasks(),
@@ -282,11 +286,15 @@ public class StreamTaskStateInitializerImpl implements StreamTaskStateInitialize
 		// Now restore processing is included in backend building/constructing process, so we need to make sure
 		// each stream constructed in restore could also be closed in case of task cancel, for example the data
 		// input stream opened for serDe during restore.
+		// TODO_WU 确保在任务取消的情况下关闭在恢复状态过程中构造的数据流
 		CloseableRegistry cancelStreamRegistryForRestore = new CloseableRegistry();
 		backendCloseableRegistry.registerCloseable(cancelStreamRegistryForRestore);
+		// TODO_WU 初始化 BackendRestorerProcedure
 		BackendRestorerProcedure<AbstractKeyedStateBackend<K>, KeyedStateHandle> backendRestorer =
 			new BackendRestorerProcedure<>(
-				(stateHandles) -> stateBackend.createKeyedStateBackend(
+				(stateHandles) ->
+					// TODO_WU 创建 StateBackend 并恢复状态
+					stateBackend.createKeyedStateBackend(
 					environment,
 					environment.getJobID(),
 					operatorIdentifierText,
@@ -301,6 +309,7 @@ public class StreamTaskStateInitializerImpl implements StreamTaskStateInitialize
 				backendCloseableRegistry,
 				logDescription);
 
+		// TODO_WU 恢复状态
 		try {
 			return backendRestorer.createAndRestore(
 				prioritizedOperatorSubtaskStates.getPrioritizedManagedKeyedState());

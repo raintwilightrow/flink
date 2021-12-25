@@ -434,7 +434,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 
 		asyncOperationsThreadPool = Executors.newCachedThreadPool(new ExecutorThreadFactory("AsyncOperations", uncaughtExceptionHandler));
 
-		// TODO_WU 创建statebackend和checkpointStorage
+		// TODO_WU 创建statebackend和checkpointStorage 1.11后移动到streamtask构造器内
 		stateBackend = createStateBackend();
 		checkpointStorage = stateBackend.createCheckpointStorage(getEnvironment().getJobID());
 
@@ -1046,6 +1046,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 	// ------------------------------------------------------------------------
 
 	private StateBackend createStateBackend() throws Exception {
+		// TODO_WU 从应用代码的UserCodeClassLoader中获取StateBackend
 		final StateBackend fromApplication = configuration.getStateBackend(getUserCodeClassLoader());
 
 		return StateBackendLoader.fromApplicationOrConfigOrDefault(

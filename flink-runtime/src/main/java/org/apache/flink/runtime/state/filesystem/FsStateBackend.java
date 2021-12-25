@@ -367,10 +367,12 @@ public class FsStateBackend extends AbstractFileStateBackend implements Configur
 				original.fileStateThreshold :
 				configuration.getInteger(CheckpointingOptions.FS_SMALL_FILE_THRESHOLD);
 
+		// TODO_WU 1024 * 1024
 		if (sizeThreshold >= 0 && sizeThreshold <= MAX_FILE_STATE_THRESHOLD) {
 			this.fileStateThreshold = sizeThreshold;
 		}
 		else {
+			// TODO_WU default=1024
 			this.fileStateThreshold = CheckpointingOptions.FS_SMALL_FILE_THRESHOLD.defaultValue();
 
 			// because this is the only place we (unlikely) ever log, we lazily

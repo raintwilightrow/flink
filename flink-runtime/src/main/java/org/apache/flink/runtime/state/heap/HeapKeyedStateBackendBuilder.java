@@ -92,12 +92,15 @@ public class HeapKeyedStateBackendBuilder<K> extends AbstractKeyedStateBackendBu
 		// Map of registered priority queue set states
 		Map<String, HeapPriorityQueueSnapshotRestoreWrapper> registeredPQStates = new HashMap<>();
 		CloseableRegistry cancelStreamRegistryForBackend = new CloseableRegistry();
+		// TODO_WU HeapSnapshotStrategy
 		HeapSnapshotStrategy<K> snapshotStrategy = initSnapshotStrategy(
 			asynchronousSnapshots, registeredKVStates, registeredPQStates, cancelStreamRegistryForBackend);
+		// TODO_WU 初始化 InternalKeyContext， 得到 InternalKeyContextImpl
 		InternalKeyContext<K> keyContext = new InternalKeyContextImpl<>(
 			keyGroupRange,
 			numberOfKeyGroups
 		);
+		// TODO_WU 初始化得到： HeapRestoreOperation
 		HeapRestoreOperation<K> restoreOperation = new HeapRestoreOperation<>(
 			restoreStateHandles,
 			keySerializerProvider,
@@ -110,11 +113,13 @@ public class HeapKeyedStateBackendBuilder<K> extends AbstractKeyedStateBackendBu
 			numberOfKeyGroups,
 			snapshotStrategy,
 			keyContext);
+		// TODO_WU 执行状态恢复
 		try {
 			restoreOperation.restore();
 		} catch (Exception e) {
 			throw new BackendBuildingException("Failed when trying to restore heap backend", e);
 		}
+		// TODO_WU 构建一个 HeapKeyedStateBackend 返回
 		return new HeapKeyedStateBackend<>(
 			kvStateRegistry,
 			keySerializerProvider.currentSchemaSerializer(),

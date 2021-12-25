@@ -194,12 +194,14 @@ public class StateBackendLoader {
 
 		final StateBackend backend;
 
+		// TODO_WU 应用中已经定义了StateBackend
 		// (1) the application defined state backend has precedence
 		if (fromApplication != null) {
 			if (logger != null) {
 				logger.info("Using application-defined state backend: {}", fromApplication);
 			}
 
+			// TODO_WU 向fromApplication中追加额外的参数配置
 			// see if this is supposed to pick up additional configuration parameters
 			if (fromApplication instanceof ConfigurableStateBackend) {
 				// needs to pick up configuration
@@ -214,13 +216,16 @@ public class StateBackendLoader {
 				backend = fromApplication;
 			}
 		}
+		// TODO_WU 如果配置为空
 		else {
+			// TODO_WU 检查配置flink-conf.yaml中，是否配置了 StateBackend
 			// (2) check if the config defines a state backend
 			final StateBackend fromConfig = loadStateBackendFromConfig(config, classLoader, logger);
 			if (fromConfig != null) {
 				backend = fromConfig;
 			}
 			else {
+				// TODO_WU 如果也没有配置，则使用默认的： MemoryStateBackend
 				// (3) use the default
 				backend = new MemoryStateBackendFactory().createFromConfig(config, classLoader);
 				if (logger != null) {

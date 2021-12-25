@@ -127,6 +127,7 @@ public class MemoryStateBackend extends AbstractFileStateBackend implements Conf
 	 * runtime configuration.
 	 */
 	public MemoryStateBackend() {
+		// TODO_WU 5 * 1024 * 1024(5 MiBytes)
 		this(null, null, DEFAULT_MAX_STATE_SIZE, TernaryBoolean.UNDEFINED);
 	}
 
@@ -218,6 +219,7 @@ public class MemoryStateBackend extends AbstractFileStateBackend implements Conf
 			int maxStateSize,
 			TernaryBoolean asynchronousSnapshots) {
 
+		// TODO_WU AbstractFileStateBackend
 		super(checkpointPath == null ? null : new Path(checkpointPath),
 				savepointPath == null ? null : new Path(savepointPath));
 
@@ -292,6 +294,7 @@ public class MemoryStateBackend extends AbstractFileStateBackend implements Conf
 
 	@Override
 	public CheckpointStorage createCheckpointStorage(JobID jobId) throws IOException {
+		// TODO_WU 创建 MemoryBackendCheckpointStorage
 		return new MemoryBackendCheckpointStorage(jobId, getCheckpointPath(), getSavepointPath(), maxStateSize);
 	}
 
@@ -309,6 +312,7 @@ public class MemoryStateBackend extends AbstractFileStateBackend implements Conf
 		return new DefaultOperatorStateBackendBuilder(
 			env.getUserClassLoader(),
 			env.getExecutionConfig(),
+			// TODO_WU CheckpointingOptions.ASYNC_SNAPSHOTS.default=true
 			isUsingAsynchronousSnapshots(),
 			stateHandles,
 			cancelStreamRegistry).build();
@@ -329,8 +333,10 @@ public class MemoryStateBackend extends AbstractFileStateBackend implements Conf
 		CloseableRegistry cancelStreamRegistry) throws BackendBuildingException {
 
 		TaskStateManager taskStateManager = env.getTaskStateManager();
+		// TODO_WU 创建HeapPriorityQueueSetFactory实例
 		HeapPriorityQueueSetFactory priorityQueueSetFactory =
 			new HeapPriorityQueueSetFactory(keyGroupRange, numberOfKeyGroups, 128);
+		// TODO_WU 创建HeapKeyedStateBackendBuilder实例HeapKeyedStateBackend
 		return new HeapKeyedStateBackendBuilder<>(
 			kvStateRegistry,
 			keySerializer,

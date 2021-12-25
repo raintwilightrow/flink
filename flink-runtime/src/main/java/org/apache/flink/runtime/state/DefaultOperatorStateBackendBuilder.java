@@ -65,6 +65,7 @@ public class DefaultOperatorStateBackendBuilder implements
 		Map<String, PartitionableListState<?>> registeredOperatorStates = new HashMap<>();
 		Map<String, BackendWritableBroadcastState<?, ?>> registeredBroadcastStates = new HashMap<>();
 		CloseableRegistry cancelStreamRegistryForBackend = new CloseableRegistry();
+		// TODO_WU snapshotStrategy 的具体实现： DefaultOperatorStateBackendSnapshotStrategy
 		AbstractSnapshotStrategy<OperatorStateHandle> snapshotStrategy =
 			new DefaultOperatorStateBackendSnapshotStrategy(
 				userClassloader,
@@ -72,6 +73,7 @@ public class DefaultOperatorStateBackendBuilder implements
 				registeredOperatorStates,
 				registeredBroadcastStates,
 				cancelStreamRegistryForBackend);
+		// TODO_WU 创建一个 OperatorStateRestoreOperation
 		OperatorStateRestoreOperation restoreOperation = new OperatorStateRestoreOperation(
 			cancelStreamRegistry,
 			userClassloader,
@@ -79,12 +81,14 @@ public class DefaultOperatorStateBackendBuilder implements
 			registeredBroadcastStates,
 			restoreStateHandles
 		);
+		// TODO_WU 执行恢复
 		try {
 			restoreOperation.restore();
 		} catch (Exception e) {
 			IOUtils.closeQuietly(cancelStreamRegistryForBackend);
 			throw new BackendBuildingException("Failed when trying to restore operator state backend", e);
 		}
+		// TODO_WU 构建 DefaultOperatorStateBackend
 		return new DefaultOperatorStateBackend(
 			executionConfig,
 			cancelStreamRegistryForBackend,
