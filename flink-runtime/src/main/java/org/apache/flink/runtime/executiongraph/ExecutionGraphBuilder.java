@@ -143,6 +143,7 @@ public class ExecutionGraphBuilder {
 
 		checkNotNull(jobGraph, "job graph cannot be null");
 
+		// TODO_WU 获取作业名称和作业ID并封装
 		final String jobName = jobGraph.getName();
 		final JobID jobId = jobGraph.getJobID();
 
@@ -154,6 +155,7 @@ public class ExecutionGraphBuilder {
 			jobGraph.getUserJarBlobKeys(),
 			jobGraph.getClasspaths());
 
+		// TODO_WU 获取最大重试次数 默认16次
 		final int maxPriorAttemptsHistoryLength =
 				jobManagerConfig.getInteger(JobManagerOptions.MAX_ATTEMPTS_HISTORY_SIZE);
 
@@ -208,12 +210,14 @@ public class ExecutionGraphBuilder {
 		// TODO_WU 遍历每个 JobVertex 执行初始化
 		for (JobVertex vertex : jobGraph.getVertices()) {
 			String executableClass = vertex.getInvokableClassName();
+			// TODO_WU 确保每个节点的调用类必须存在
 			if (executableClass == null || executableClass.isEmpty()) {
 				throw new JobSubmissionException(jobId,
 						"The vertex " + vertex.getID() + " (" + vertex.getName() + ") has no invokable class.");
 			}
 
 			try {
+				// TODO_WU 根据不同的节点类型，调用job启动时节点的任务逻辑
 				vertex.initializeOnMaster(classLoader);
 			}
 			catch (Throwable t) {
@@ -226,10 +230,12 @@ public class ExecutionGraphBuilder {
 				(System.nanoTime() - initMasterStart) / 1_000_000);
 
 		// topologically sort the job vertices and attach the graph to the existing one
+		// TODO_WU 按照拓扑结构（数据流的顺序）排序，获取所有的Job顶点
 		List<JobVertex> sortedTopology = jobGraph.getVerticesSortedTopologicallyFromSources();
 		if (log.isDebugEnabled()) {
 			log.debug("Adding {} vertices from job graph {} ({}).", sortedTopology.size(), jobName, jobId);
 		}
+		// TODO_WU executionGraph绑定所有的Job节点
 		executionGraph.attachJobGraph(sortedTopology);
 
 		if (log.isDebugEnabled()) {
@@ -237,14 +243,20 @@ public class ExecutionGraphBuilder {
 		}
 
 		// configure the state checkpointing
+		// TODO_WU snapshotSettings的配置位于StreamingJobGraphGenerator
 		JobCheckpointingSettings snapshotSettings = jobGraph.getCheckpointingSettings();
 		if (snapshotSettings != null) {
+			// TODO_WU 获取所有触发checkpoint的顶点，即source, 只有这些点会收到 trigger checkpoint 消息
 			List<ExecutionJobVertex> triggerVertices =
 					idToVertex(snapshotSettings.getVerticesToTrigger(), executionGraph);
 
+			// TODO_WU 获取所有需要checkpoint确认的顶点，即所有的顶点,
+			// 需要在 snapshot 完成后，向 CheckpointCoordinator 发送 ack 消息的顶点
 			List<ExecutionJobVertex> ackVertices =
 					idToVertex(snapshotSettings.getVerticesToAcknowledge(), executionGraph);
 
+			// TODO_WU 获取所有需要接收到提交checkpoint信息的顶点，即所有的顶点
+			// 需要在 checkpoint 完成后，收到 CheckpointCoordinator “notifyCheckpointComplete”
 			List<ExecutionJobVertex> confirmVertices =
 					idToVertex(snapshotSettings.getVerticesToConfirm(), executionGraph);
 
@@ -265,6 +277,7 @@ public class ExecutionGraphBuilder {
 					maxNumberOfCheckpointsToRetain = CheckpointingOptions.MAX_RETAINED_CHECKPOINTS.defaultValue();
 				}
 
+				// TODO_WU 创建 CheckpointStore
 				completedCheckpoints = recoveryFactory.createCheckpointStore(jobId, maxNumberOfCheckpointsToRetain, classLoader);
 				checkpointIdCounter = recoveryFactory.createCheckpointIDCounter(jobId);
 			}
@@ -275,6 +288,7 @@ public class ExecutionGraphBuilder {
 			// Maximum number of remembered checkpoints
 			int historySize = jobManagerConfig.getInteger(WebOptions.CHECKPOINTS_HISTORY_SIZE);
 
+			// TODO_WU 创建checkpoint状态跟踪器，和CheckpointCoordinator配合工作
 			CheckpointStatsTracker checkpointStatsTracker = new CheckpointStatsTracker(
 					historySize,
 					ackVertices,
@@ -290,6 +304,7 @@ public class ExecutionGraphBuilder {
 			}
 			else {
 				try {
+					// TODO_WU 根据应用的配置获取状态后端
 					applicationConfiguredBackend = serializedAppConfigured.deserializeValue(classLoader);
 				} catch (IOException | ClassNotFoundException e) {
 					throw new JobExecutionException(jobId,
@@ -299,6 +314,7 @@ public class ExecutionGraphBuilder {
 
 			final StateBackend rootBackend;
 			try {
+				// TODO_WU 获取状态后端配置 如果应用的状态后端没有配置，使用配置文件中的状态后端
 				rootBackend = StateBackendLoader.fromApplicationOrConfigOrDefault(
 						applicationConfiguredBackend, jobManagerConfig, classLoader, log);
 			}
@@ -307,6 +323,7 @@ public class ExecutionGraphBuilder {
 			}
 
 			// instantiate the user-defined checkpoint hooks
+			// TODO_WU 实例化用户定义的checkpoint钩子 用以恢复快照或者是触发快照
 
 			final SerializedValue<MasterTriggerRestoreHook.Factory[]> serializedHooks = snapshotSettings.getMasterHooks();
 			final List<MasterTriggerRestoreHook<?>> hooks;

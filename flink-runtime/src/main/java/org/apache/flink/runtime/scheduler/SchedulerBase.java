@@ -227,6 +227,7 @@ public abstract class SchedulerBase implements SchedulerNG {
 		ShuffleMaster<?> shuffleMaster,
 		JobMasterPartitionTracker partitionTracker) throws Exception {
 
+		// TODO_WU 创建ExecutionGraph
 		ExecutionGraph newExecutionGraph = createExecutionGraph(currentJobManagerJobMetricGroup, shuffleMaster, partitionTracker);
 
 		final CheckpointCoordinator checkpointCoordinator = newExecutionGraph.getCheckpointCoordinator();

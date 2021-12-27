@@ -448,6 +448,7 @@ public class StreamExecutionEnvironment {
 	@PublicEvolving
 	public StreamExecutionEnvironment enableCheckpointing(long interval, CheckpointingMode mode, boolean force) {
 		checkpointCfg.setCheckpointingMode(mode);
+		// TODO_WU 默认为500ms，最小值10ms
 		checkpointCfg.setCheckpointInterval(interval);
 		checkpointCfg.setForceCheckpointing(force);
 		return this;

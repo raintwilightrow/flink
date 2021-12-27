@@ -419,6 +419,7 @@ public class StreamingJobGraphGenerator {
 			Map<Integer, List<Tuple2<byte[], byte[]>>> chainedOperatorHashes) {
 
 		JobVertex jobVertex;
+		// TODO_WU 获取 startStreamNode
 		StreamNode streamNode = streamGraph.getStreamNode(streamNodeId);
 
 		byte[] hash = hashes.get(streamNodeId);
@@ -448,6 +449,7 @@ public class StreamingJobGraphGenerator {
 			}
 		}
 
+		// TODO_WU JobVertex 初始化
 		if (chainedInputOutputFormats.containsKey(streamNodeId)) {
 			jobVertex = new InputOutputFormatVertex(
 					chainedNames.get(streamNodeId),
@@ -493,6 +495,7 @@ public class StreamingJobGraphGenerator {
 
 		jobVertices.put(streamNodeId, jobVertex);
 		builtVertices.add(streamNodeId);
+		// TODO_WU 将生成好的 JobVertex 加入到JobGraph
 		jobGraph.addVertex(jobVertex);
 
 		return new StreamConfig(jobVertex.getConfiguration());

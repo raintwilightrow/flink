@@ -370,20 +370,22 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
 	private CompletableFuture<Void> runJob(JobGraph jobGraph) {
 		Preconditions.checkState(!jobManagerRunnerFutures.containsKey(jobGraph.getJobID()));
 
-		// TODO_WU 创建 JobManagerRunner
+		// TODO_WU >>异步创建 JobManagerRunner<<
 		final CompletableFuture<JobManagerRunner> jobManagerRunnerFuture = createJobManagerRunner(jobGraph);
 
+		// TODO_WU 将创建的jobManagerRunnerFuture对象添加到jobManagerRunnerFutures中，防止Job重复执行
 		jobManagerRunnerFutures.put(jobGraph.getJobID(), jobManagerRunnerFuture);
 
 
 		return jobManagerRunnerFuture
 			.thenApply(FunctionUtils.uncheckedFunction(
-				// TODO_WU 启动 JobManagerRunner
+				// TODO_WU >>启动 JobManagerRunner<<
 				this::startJobManagerRunner))
 			.thenApply(FunctionUtils.nullFn())
 			.whenCompleteAsync(
 				(ignored, throwable) -> {
 					if (throwable != null) {
+						// TODO_WU 有异常则从jobManagerRunnerFutures中移除JobID信息
 						jobManagerRunnerFutures.remove(jobGraph.getJobID());
 					}
 				},
@@ -395,6 +397,7 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
 
 		return CompletableFuture.supplyAsync(
 			CheckedSupplier.unchecked(() ->
+				// TODO_WU DefaultJobManagerRunnerFactory.createJobManagerRunner()
 				jobManagerRunnerFactory.createJobManagerRunner(
 					jobGraph,
 					configuration,

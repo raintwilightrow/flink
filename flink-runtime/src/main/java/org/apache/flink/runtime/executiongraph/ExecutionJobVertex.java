@@ -179,6 +179,7 @@ public class ExecutionJobVertex implements AccessExecutionJobVertex, Archiveable
 
 		this.maxParallelismConfigured = (VALUE_NOT_SET != configuredMaxParallelism);
 
+		// TODO_WU 如果并没有设置并行度的话，会通过计算来确定一个合适的默认值
 		// if no max parallelism was configured by the user, we calculate and set a default
 		setMaxParallelismInternal(maxParallelismConfigured ?
 				configuredMaxParallelism : KeyGroupRangeAssignment.computeDefaultMaxParallelism(numTaskVertices));
@@ -195,6 +196,7 @@ public class ExecutionJobVertex implements AccessExecutionJobVertex, Archiveable
 		this.parallelism = numTaskVertices;
 		this.resourceProfile = ResourceProfile.fromResourceSpec(jobVertex.getMinResources(), MemorySize.ZERO);
 
+		// TODO_WU 表示ExecutionJobVertex的其中一个并发子任务，输入是ExecutionEdge，输出是IntermediateResultPartition
 		this.taskVertices = new ExecutionVertex[numTaskVertices];
 		this.operatorIDs = Collections.unmodifiableList(jobVertex.getOperatorIDs());
 		this.userDefinedOperatorIds = Collections.unmodifiableList(jobVertex.getUserDefinedOperatorIDs());
@@ -210,9 +212,12 @@ public class ExecutionJobVertex implements AccessExecutionJobVertex, Archiveable
 			throw new JobException("Vertex uses a co-location constraint without using slot sharing");
 		}
 
+		// TODO_WU 输出结果集，和JobGraph中的IntermediateDataSet一一对应
+		// 一个IntermediateResult包含多个IntermediateResultPartition，其个数等于该operator的并发度
 		// create the intermediate results
 		this.producedDataSets = new IntermediateResult[jobVertex.getNumberOfProducedIntermediateDataSets()];
 
+		// TODO_WU 初始化 producedDataSets 数组中的每个 IntermediateResult
 		for (int i = 0; i < jobVertex.getProducedDataSets().size(); i++) {
 			final IntermediateDataSet result = jobVertex.getProducedDataSets().get(i);
 
@@ -223,6 +228,7 @@ public class ExecutionJobVertex implements AccessExecutionJobVertex, Archiveable
 					result.getResultType());
 		}
 
+		// TODO_WU 创建 ExecutionVertex 对象
 		// create all task vertices
 		for (int i = 0; i < numTaskVertices; i++) {
 			ExecutionVertex vertex = new ExecutionVertex(

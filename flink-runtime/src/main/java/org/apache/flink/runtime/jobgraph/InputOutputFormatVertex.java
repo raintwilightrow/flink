@@ -64,6 +64,7 @@ public class InputOutputFormatVertex extends JobVertex {
 			// set user classloader before calling user code
 			Thread.currentThread().setContextClassLoader(loader);
 
+			// TODO_WU 设置 InputFormat
 			// configure the input format and setup input splits
 			Map<OperatorID, UserCodeWrapper<? extends InputFormat<?, ?>>> inputFormats = formatContainer.getInputFormats();
 			if (inputFormats.size() > 1) {
@@ -83,6 +84,7 @@ public class InputOutputFormatVertex extends JobVertex {
 				setInputSplitSource(inputFormat);
 			}
 
+			// TODO_WU 设置 OutputFormat
 			// configure input formats and invoke initializeGlobal()
 			Map<OperatorID, UserCodeWrapper<? extends OutputFormat<?>>> outputFormats = formatContainer.getOutputFormats();
 			for (Map.Entry<OperatorID, UserCodeWrapper<? extends OutputFormat<?>>> entry : outputFormats.entrySet()) {

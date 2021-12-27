@@ -451,15 +451,18 @@ public class ExecutionGraph implements AccessExecutionGraph {
 			StateBackend checkpointStateBackend,
 			CheckpointStatsTracker statsTracker) {
 
+		// TODO_WU 状态校验
 		checkState(state == JobStatus.CREATED, "Job must be in CREATED state");
 		checkState(checkpointCoordinator == null, "checkpointing already enabled");
 
+		// TODO_WU 配置需要执行 Checkpoint 相关行为的 ExecutionVertex
 		ExecutionVertex[] tasksToTrigger = collectExecutionVertices(verticesToTrigger);
 		ExecutionVertex[] tasksToWaitFor = collectExecutionVertices(verticesToWaitFor);
 		ExecutionVertex[] tasksToCommitTo = collectExecutionVertices(verticesToCommitTo);
 
 		checkpointStatsTracker = checkNotNull(statsTracker, "CheckpointStatsTracker");
 
+		// TODO_WU 创建 CheckpointFailureManager，用于Checkpoint执行过程中的容错管理
 		CheckpointFailureManager failureManager = new CheckpointFailureManager(
 			chkConfig.getTolerableCheckpointFailureNumber(),
 			new CheckpointFailureManager.FailJobCallback() {
@@ -477,10 +480,12 @@ public class ExecutionGraph implements AccessExecutionGraph {
 
 		checkState(checkpointCoordinatorTimer == null);
 
+		// TODO_WU 创建定时器 checkpointCoordinatorTimer（ScheduledExecutorService），用于定时触发 checkpoint
 		checkpointCoordinatorTimer = Executors.newSingleThreadScheduledExecutor(
 			new DispatcherThreadFactory(
 				Thread.currentThread().getThreadGroup(), "Checkpoint Timer"));
 
+		// TODO_WU 创建 CheckpointCoordinator，并注册 CheckpointCoordinatorDeActivator
 		// create the coordinator that triggers and commits checkpoints and holds the state
 		checkpointCoordinator = new CheckpointCoordinator(
 			jobInformation.getJobId(),
@@ -496,6 +501,7 @@ public class ExecutionGraph implements AccessExecutionGraph {
 			SharedStateRegistry.DEFAULT_FACTORY,
 			failureManager);
 
+		// TODO_WU 设置主消息钩子，在创建checkpoint或从checkpoint恢复的时候回调
 		// register the master hooks on the checkpoint coordinator
 		for (MasterTriggerRestoreHook<?> hook : masterHooks) {
 			if (!checkpointCoordinator.addMasterHook(hook)) {
@@ -510,6 +516,7 @@ public class ExecutionGraph implements AccessExecutionGraph {
 		if (chkConfig.getCheckpointInterval() != Long.MAX_VALUE) {
 			// the periodic checkpoint scheduler is activated and deactivated as a result of
 			// job status changes (running -> on, all other states -> off)
+			// TODO_WU 注册一个 Job 状态监听器 当作业状态转化成 JobStatus.RUNNING 时，CheckpointCoordinator 中的调度器启动
 			registerJobStatusListener(checkpointCoordinator.createActivatorDeactivator());
 		}
 
@@ -786,6 +793,7 @@ public class ExecutionGraph implements AccessExecutionGraph {
 
 	public void attachJobGraph(List<JobVertex> topologiallySorted) throws JobException {
 
+		// TODO_WU 检查在JobMaster主线程执行
 		assertRunningInJobMasterMainThread();
 
 		LOG.debug("Attaching {} topologically sorted vertices to existing job graph with {} " +
@@ -794,6 +802,7 @@ public class ExecutionGraph implements AccessExecutionGraph {
 			tasks.size(),
 			intermediateResults.size());
 
+		// TODO_WU 创建保存Execution作业顶点的集合
 		final ArrayList<ExecutionJobVertex> newExecJobVertices = new ArrayList<>(topologiallySorted.size());
 		final long createTimestamp = System.currentTimeMillis();
 
@@ -820,6 +829,7 @@ public class ExecutionGraph implements AccessExecutionGraph {
 
 			// TODO_WU 将生成好的 ExecutionJobVertex 加入到 ExecutionGraph 中
 			ExecutionJobVertex previousTask = this.tasks.putIfAbsent(jobVertex.getID(), ejv);
+			// TODO_WU 如果previousTask不为空，说明两个JobGraph的顶点具有相同的ID，为异常情况
 			if (previousTask != null) {
 				throw new JobException(String.format("Encountered two job vertices with ID %s : previous=[%s] / new=[%s]",
 					jobVertex.getID(), ejv, previousTask));
@@ -828,6 +838,7 @@ public class ExecutionGraph implements AccessExecutionGraph {
 			// TODO_WU 将当前 ExecutionJobVertex 的输入 IntermediateResult 加入到 intermediateResults map 中
 			for (IntermediateResult res : ejv.getProducedDataSets()) {
 				IntermediateResult previousDataSet = this.intermediateResults.putIfAbsent(res.getId(), res);
+				// TODO_WU 检查result的ID不能重复
 				if (previousDataSet != null) {
 					throw new JobException(String.format("Encountered two intermediate data set with ID %s : previous=[%s] / new=[%s]",
 						res.getId(), res, previousDataSet));
@@ -845,9 +856,11 @@ public class ExecutionGraph implements AccessExecutionGraph {
 		// the topology assigning should happen before notifying new vertices to failoverStrategy
 		executionTopology = new DefaultExecutionTopology(this);
 
+		// TODO_WU 1.12新特性 pipelined-region-sheduling
+
 		failoverStrategy.notifyNewVertices(newExecJobVertices);
 
-		// TODO_WU 返回RegionPartitionReleaseStrategy
+		// TODO_WU 创建分区释放策略 RegionPartitionReleaseStrategy
 		partitionReleaseStrategy = partitionReleaseStrategyFactory.createInstance(getSchedulingTopology());
 	}
 

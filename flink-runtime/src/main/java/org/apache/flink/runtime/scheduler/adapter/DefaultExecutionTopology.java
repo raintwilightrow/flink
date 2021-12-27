@@ -60,22 +60,26 @@ public class DefaultExecutionTopology implements SchedulingTopology<DefaultExecu
 			.anyMatch(Objects::nonNull);
 
 		this.executionVerticesById = new HashMap<>();
+		// TODO_WU 待调度的 DefaultExecutionVertex 的集合初始化
 		this.executionVerticesList = new ArrayList<>(graph.getTotalNumberOfVertices());
 		Map<IntermediateResultPartitionID, DefaultResultPartition> tmpResultPartitionsById = new HashMap<>();
 		Map<ExecutionVertex, DefaultExecutionVertex> executionVertexMap = new HashMap<>();
 
 		for (ExecutionVertex vertex : graph.getAllExecutionVertices()) {
+			// TODO_WU 将 ExecutionVertex 生成 待调度的 DefaultExecutionVertex
 			List<DefaultResultPartition> producedPartitions = generateProducedSchedulingResultPartition(vertex.getProducedPartitions());
 
 			producedPartitions.forEach(partition -> tmpResultPartitionsById.put(partition.getId(), partition));
 
 			DefaultExecutionVertex schedulingVertex = generateSchedulingExecutionVertex(vertex, producedPartitions);
 			this.executionVerticesById.put(schedulingVertex.getId(), schedulingVertex);
+			// TODO_WU 待调度的 ExecutionVertex 加入到待调度 DefaultExecutionVertex 集合中
 			this.executionVerticesList.add(schedulingVertex);
 			executionVertexMap.put(vertex, schedulingVertex);
 		}
 		this.resultPartitionsById = tmpResultPartitionsById;
 
+		// TODO_WU 将ResultPartition和Vertex绑定
 		connectVerticesToConsumedPartitions(executionVertexMap, tmpResultPartitionsById);
 	}
 
@@ -102,6 +106,7 @@ public class DefaultExecutionTopology implements SchedulingTopology<DefaultExecu
 	private static List<DefaultResultPartition> generateProducedSchedulingResultPartition(
 		Map<IntermediateResultPartitionID, IntermediateResultPartition> producedIntermediatePartitions) {
 
+		// TODO_WU 生成待调度的 DefaultExecutionVertex
 		List<DefaultResultPartition> producedSchedulingPartitions = new ArrayList<>(producedIntermediatePartitions.size());
 
 		producedIntermediatePartitions.values().forEach(
