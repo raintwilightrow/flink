@@ -99,12 +99,15 @@ public class CheckpointCoordinator {
 	/** The executor used for asynchronous calls, like potentially blocking I/O. */
 	private final Executor executor;
 
+	// TODO_WU source类
 	/** Tasks who need to be sent a message when a checkpoint is started. */
 	private final ExecutionVertex[] tasksToTrigger;
 
+	// TODO_WU 所有
 	/** Tasks who need to acknowledge a checkpoint before it succeeds. */
 	private final ExecutionVertex[] tasksToWaitFor;
 
+	// TODO_WU 所有
 	/** Tasks who need to be sent a message when a checkpoint is confirmed. */
 	private final ExecutionVertex[] tasksToCommitTo;
 
@@ -160,6 +163,7 @@ public class CheckpointCoordinator {
 	 * completed. */
 	private long lastCheckpointCompletionRelativeTime;
 
+	// TODO_WU 标记触发的检查点是否应立即安排下一个检查点。 Non-volatile，因为仅在同步范围内访问
 	/** Flag whether a triggered checkpoint should immediately schedule the next checkpoint.
 	 * Non-volatile, because only accessed in synchronized scope */
 	private boolean periodicScheduling;
@@ -237,12 +241,14 @@ public class CheckpointCoordinator {
 		// sanity checks
 		checkNotNull(checkpointStateBackend);
 
+		// TODO_WU 持续时间之间的最大值”可以为一年-这是为了防止数值溢出
 		// max "in between duration" can be one year - this is to prevent numeric overflows
 		long minPauseBetweenCheckpoints = chkConfig.getMinPauseBetweenCheckpoints();
 		if (minPauseBetweenCheckpoints > 365L * 24 * 60 * 60 * 1_000) {
 			minPauseBetweenCheckpoints = 365L * 24 * 60 * 60 * 1_000;
 		}
 
+		// TODO_WU 如果 checkpoint 的时间，超过 checkpoint 的间隔时间，则 checkpoint 无意义
 		// it does not make sense to schedule checkpoints more often then the desired
 		// time between checkpoints
 		long baseInterval = chkConfig.getCheckpointInterval();
@@ -276,7 +282,9 @@ public class CheckpointCoordinator {
 		this.checkpointProperties = CheckpointProperties.forCheckpoint(chkConfig.getCheckpointRetentionPolicy());
 
 		try {
+			// TODO_WU 为 该 Job 创建 CheckpointStorage 路径
 			this.checkpointStorage = checkpointStateBackend.createCheckpointStorage(job);
+			// TODO_WU 初始化一些必要的文件目录
 			checkpointStorage.initializeBaseLocations();
 		} catch (IOException e) {
 			throw new FlinkRuntimeException("Failed to create checkpoint storage at checkpoint coordinator side.", e);
@@ -478,7 +486,11 @@ public class CheckpointCoordinator {
 	 */
 	public CompletableFuture<CompletedCheckpoint> triggerCheckpoint(long timestamp, boolean isPeriodic) {
 		try {
-			return triggerCheckpoint(timestamp, checkpointProperties, null, isPeriodic, false);
+			return triggerCheckpoint(timestamp, checkpointProperties, null,
+				// TODO_WU 是否为周期调用
+				isPeriodic,
+				// TODO_WU false 表示 周期调度，自动调度，异步; true 表示 手动 savepoint
+				false);
 		} catch (CheckpointException e) {
 			long latestGeneratedCheckpointId = getCheckpointIdCounter().get();
 			// here we can not get the failed pending checkpoint's id,
@@ -496,15 +508,21 @@ public class CheckpointCoordinator {
 			boolean isPeriodic,
 			boolean advanceToEndOfTime) throws CheckpointException {
 
+		/**
+		 * TODO_WU 进行条件检查，检查是否满足进行 checkpoint 的条件
+		 * 只有当 advanceToEndOfTime 为 true，意味着是是 手动checkpoint，也就是同步快照，才能将 watermark 标记为 max
+		 */
 		if (advanceToEndOfTime && !(props.isSynchronous() && props.isSavepoint())) {
 			throw new IllegalArgumentException("Only synchronous savepoints are allowed to advance the watermark to MAX.");
 		}
 
 		// make some eager pre-checks
 		synchronized (lock) {
+			// TODO_WU 检查是否满足进行 checkpoint 的条件
 			preCheckBeforeTriggeringCheckpoint(isPeriodic, props.forceCheckpoint());
 		}
 
+		// TODO_WU 找到所有的 Source ExecutionVertex
 		// check if all tasks that we need to trigger are running.
 		// if not, abort the checkpoint
 		Execution[] executions = new Execution[tasksToTrigger.length];
@@ -515,7 +533,10 @@ public class CheckpointCoordinator {
 						tasksToTrigger[i].getTaskNameWithSubtaskIndex(),
 						job);
 				throw new CheckpointException(CheckpointFailureReason.NOT_ALL_REQUIRED_TASKS_RUNNING);
-			} else if (ee.getState() == ExecutionState.RUNNING) {
+			}
+			// TODO_WU 只有当所有的 source ExecutionVertex 都是 RUNNING 状态才能执行 checkpoint
+			// TODO_WU 如果有一个 Source ExecutionVertex 没有运行中的 Execution 的时候，则 checkpoint 直接失败
+			else if (ee.getState() == ExecutionState.RUNNING) {
 				executions[i] = ee;
 			} else {
 				LOG.info("Checkpoint triggering task {} of job {} is not in state {} but {} instead. Aborting checkpoint.",
@@ -527,6 +548,7 @@ public class CheckpointCoordinator {
 			}
 		}
 
+		// TODO_WU 获取所有需要进行 ack 的 ExecutionVertex
 		// next, check if all tasks that need to acknowledge the checkpoint are running.
 		// if not, abort the checkpoint
 		Map<ExecutionAttemptID, ExecutionVertex> ackTasks = new HashMap<>(tasksToWaitFor.length);
@@ -534,6 +556,7 @@ public class CheckpointCoordinator {
 		for (ExecutionVertex ev : tasksToWaitFor) {
 			Execution ee = ev.getCurrentExecutionAttempt();
 			if (ee != null) {
+				// TODO_WU 当前 ExecutionVertex 的 Execution 不为空，意味着就是 RUNNING 状态 则加入容器
 				ackTasks.put(ee.getAttemptId(), ev);
 			} else {
 				LOG.info("Checkpoint acknowledging task {} of job {} is not being executed at the moment. Aborting checkpoint.",
@@ -542,7 +565,9 @@ public class CheckpointCoordinator {
 				throw new CheckpointException(CheckpointFailureReason.NOT_ALL_REQUIRED_TASKS_RUNNING);
 			}
 		}
+		// TODO_WU 如果有一个 Task 不在运行状态，则停止 checkpoint
 
+		// TODO_WU 正式启动checkpoint
 		// we will actually trigger this checkpoint!
 
 		final CheckpointStorageLocation checkpointStorageLocation;
@@ -551,8 +576,20 @@ public class CheckpointCoordinator {
 		try {
 			// this must happen outside the coordinator-wide lock, because it communicates
 			// with external services (in HA mode) and may block for a while.
+
+			/**
+			 * TODO_WU checkpointID 用于标识一次 checkpoint
+			 * 1、StandaloneCheckpointIDCounter: 未开启 HA 模式，实际由 AtomicLong 自增实现
+			 * 2、开启 HA 模式，使用了 Curator 的 分布式计数器 SharedCount，flink on yarn 模式下，
+			 *    默认计数保存地址为 /flink/{yarn-app-id}/checkpoint-counter/{job-id}
+			 */
 			checkpointID = checkpointIdCounter.getAndIncrement();
 
+			/**
+			 * TODO_WU 获得checkpoint 持久化时的保存位置
+			 * MemoryBackendCheckpointStorage 一般保存在内存里
+			 * FsCheckpointStorage 持久化数据保存到文件系统
+			 */
 			checkpointStorageLocation = props.isSavepoint() ?
 					checkpointStorage.initializeLocationForSavepoint(checkpointID, externalSavepointLocation) :
 					checkpointStorage.initializeLocationForCheckpoint(checkpointID);
@@ -566,6 +603,7 @@ public class CheckpointCoordinator {
 			throw new CheckpointException(CheckpointFailureReason.EXCEPTION, t);
 		}
 
+		// TODO_WU 创建 PendingCheckpoint 当 checkpoint 执行完毕之后，就会变成 CompletedCheckpoint
 		final PendingCheckpoint checkpoint = new PendingCheckpoint(
 			job,
 			checkpointID,
@@ -577,26 +615,34 @@ public class CheckpointCoordinator {
 			executor);
 
 		if (statsTracker != null) {
+			// TODO_WU 获取状态report回调
 			PendingCheckpointStats callback = statsTracker.reportPendingCheckpoint(
 				checkpointID,
 				timestamp,
 				props);
 
+			// TODO_WU 设置状态回调
 			checkpoint.setStatsCallback(callback);
 		}
 
 		// schedule the timer that will clean up the expired checkpoints
+		// TODO_WU CheckpointCanceller 用于后续超时情况下的 PendingCheckpoint 清理用于释放资源
 		final Runnable canceller = () -> {
 			synchronized (lock) {
 				// only do the work if the checkpoint is not discarded anyways
 				// note that checkpoint completion discards the pending checkpoint object
+				// TODO_WU 排除已经废弃的
 				if (!checkpoint.isDiscarded()) {
 					LOG.info("Checkpoint {} of job {} expired before completing.", checkpointID, job);
 
+					// TODO_WU 放弃正在进行中的checkpoint
 					failPendingCheckpoint(checkpoint, CheckpointFailureReason.CHECKPOINT_EXPIRED);
+					// TODO_WU pendingCheckpoints移除此checkpoint
 					pendingCheckpoints.remove(checkpointID);
+					// TODO_WU 增加最近checkpoint ID
 					rememberRecentCheckpointId(checkpointID);
 
+					// TODO_WU 触发排队等待的checkpoint操作
 					triggerQueuedRequests();
 				}
 			}
@@ -605,16 +651,20 @@ public class CheckpointCoordinator {
 		try {
 			// re-acquire the coordinator-wide lock
 			synchronized (lock) {
+				// TODO_WU 再次检查
 				preCheckBeforeTriggeringCheckpoint(isPeriodic, props.forceCheckpoint());
 
 				LOG.info("Triggering checkpoint {} @ {} for job {}.", checkpointID, timestamp, job);
 
+				// TODO_WU pendingCheckpoints添加 checkpoint 请求
 				pendingCheckpoints.put(checkpointID, checkpoint);
 
+				// TODO_WU 开始调度一个定时任务 执行CheckpointCanceller 清理过期的cp
 				ScheduledFuture<?> cancellerHandle = timer.schedule(
 						canceller,
 						checkpointTimeout, TimeUnit.MILLISECONDS);
 
+				// TODO_WU 确定Checkpoint是否已经被释放
 				if (!checkpoint.setCancellerHandle(cancellerHandle)) {
 					// checkpoint is already disposed!
 					cancellerHandle.cancel(false);
@@ -622,29 +672,36 @@ public class CheckpointCoordinator {
 
 				// TODO, asynchronously snapshots master hook without waiting here
 				for (MasterTriggerRestoreHook<?> masterHook : masterHooks.values()) {
+					// TODO_WU 触发 master hook 准备外部系统环境或触发相应的系统操作
 					final MasterState masterState =
 						MasterHooks.triggerHook(masterHook, checkpointID, timestamp, executor)
 							.get(checkpointTimeout, TimeUnit.MILLISECONDS);
+					// TODO_WU 发回反馈
 					checkpoint.acknowledgeMasterState(masterHook.getIdentifier(), masterState);
 				}
 				Preconditions.checkState(checkpoint.areMasterStatesFullyAcknowledged());
 			}
 			// end of lock scope
 
+			// TODO_WU 获取checkpoint类型和存储位置配置
 			final CheckpointOptions checkpointOptions = new CheckpointOptions(
 					props.getCheckpointType(),
 					checkpointStorageLocation.getLocationReference());
 
+			// TODO_WU 分别执行executions中的Execution节点
 			// send the messages to the tasks that trigger their checkpoint
 			for (Execution execution: executions) {
 				if (props.isSynchronous()) {
+					// TODO_WU 同步执行，则调用triggerSynchronousSavepoint()方法
 					execution.triggerSynchronousSavepoint(checkpointID, timestamp, checkpointOptions, advanceToEndOfTime);
 				} else {
 					execution.triggerCheckpoint(checkpointID, timestamp, checkpointOptions);
 				}
 			}
 
+
 			numUnsuccessfulCheckpointsTriggers.set(0);
+			// TODO_WU 返回Checkpoint中的CompletionFuture对象
 			return checkpoint.getCompletionFuture();
 		}
 		catch (Throwable t) {
@@ -1232,10 +1289,13 @@ public class CheckpointCoordinator {
 				throw new IllegalArgumentException("Checkpoint coordinator is shut down");
 			}
 
+			// TODO_WU 首先确保之前的 checkpoint Scheduler 停止
 			// make sure all prior timers are cancelled
 			stopCheckpointScheduler();
 
 			periodicScheduling = true;
+			// TODO_WU 触发 checkpoint 的定时调度
+			// 在（minPauseBetweenCheckpoints，checkpoint baseInterval + 1）之间随机等待一段时间后，定时执行 ScheduledTrigger
 			currentPeriodicTrigger = scheduleTriggerWithDelay(getRandomInitDelay());
 		}
 	}
@@ -1314,6 +1374,7 @@ public class CheckpointCoordinator {
 	}
 
 	private ScheduledFuture<?> scheduleTriggerWithDelay(long initDelay) {
+		// TODO_WU 创建 ScheduledTrigger 放到线程池中定时执行 triggerCheckpoint 方法触发 Checkpoint
 		return timer.scheduleAtFixedRate(
 			new ScheduledTrigger(),
 			initDelay, baseInterval, TimeUnit.MILLISECONDS);
@@ -1344,6 +1405,7 @@ public class CheckpointCoordinator {
 		@Override
 		public void run() {
 			try {
+				// TODO_WU 执行 checkpoint
 				triggerCheckpoint(System.currentTimeMillis(), true);
 			}
 			catch (Exception e) {
@@ -1486,10 +1548,12 @@ public class CheckpointCoordinator {
 
 	private void preCheckBeforeTriggeringCheckpoint(boolean isPeriodic, boolean forceCheckpoint) throws CheckpointException {
 		// abort if the coordinator has been shutdown in the meantime
+		// TODO_WU coordinator 处于 shutdown 状态，取消 checkpoint
 		if (shutdown) {
 			throw new CheckpointException(CheckpointFailureReason.CHECKPOINT_COORDINATOR_SHUTDOWN);
 		}
 
+		// TODO_WU 如果调度已禁用，则不允许定期检查点--当用户手动触发了 savepoint
 		// Don't allow periodic checkpoint if scheduling has been disabled
 		if (isPeriodic && !periodicScheduling) {
 			throw new CheckpointException(CheckpointFailureReason.PERIODIC_SCHEDULER_SHUTDOWN);
