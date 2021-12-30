@@ -58,6 +58,7 @@ public class RpcCheckpointResponder implements CheckpointResponder {
 			long checkpointId,
 			Throwable cause) {
 
+		// TODO_WU 发送取消 checkpoint 的消息给 JobMaster(checkpointCoordinator)
 		checkpointCoordinatorGateway.declineCheckpoint(new DeclineCheckpoint(jobID,
 			executionAttemptID,
 			checkpointId,

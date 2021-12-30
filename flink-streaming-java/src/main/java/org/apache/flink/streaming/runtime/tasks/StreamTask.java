@@ -804,6 +804,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 			CheckpointOptions checkpointOptions,
 			boolean advanceToEndOfEventTime) {
 
+		// TODO_WU 待执行的 checkpoint 被封装成为 Mail 提交给 mainMailboxExecutor 来执行
 		return mailboxProcessor.getMainMailboxExecutor().submit(
 				() -> triggerCheckpoint(checkpointMetaData, checkpointOptions, advanceToEndOfEventTime),
 				"checkpoint %s with %s",
@@ -816,11 +817,15 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 			CheckpointOptions checkpointOptions,
 			boolean advanceToEndOfEventTime) throws Exception {
 		try {
+			// TODO_WU 如果我们注入检查点，则无法对齐
 			// No alignment if we inject a checkpoint
+			// TODO_WU 创建相关监控信息
 			CheckpointMetrics checkpointMetrics = new CheckpointMetrics()
 				.setBytesBufferedInAlignment(0L)
 				.setAlignmentDurationNanos(0L);
 
+			// TODO_WU 执行 Checkpoint 的执行
+			// 1 创建Checkpoint Barrier并向下游节点广播； 2 触发本节点的快照操作
 			boolean success = performCheckpoint(checkpointMetaData, checkpointOptions, checkpointMetrics, advanceToEndOfEventTime);
 			if (!success) {
 				declineCheckpoint(checkpointMetaData.getCheckpointId());
@@ -888,25 +893,32 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 		final long checkpointId = checkpointMetaData.getCheckpointId();
 
 		if (isRunning) {
+			// TODO_WU 使用actionExecutor执行Checkpoint逻辑
 			actionExecutor.runThrowing(() -> {
 
 				if (checkpointOptions.getCheckpointType().isSynchronous()) {
 					setSynchronousSavepointId(checkpointId);
 
 					if (advanceToEndOfTime) {
+						// TODO_WU 当作业处于 TERMINATED 状态时，SourceStreamTask 会向下游发送 MAX_WATERMARK，
+						// 触发所有的 timer，使得相关的 state 数据（例如 window state）能够刷盘
 						advanceToEndOfEventTime();
 					}
 				}
 
+				// TODO_WU 从 barriers和records/watermarks/timers/callbacks 的角度来看，以下所有步骤都是原子步骤
 				// All of the following steps happen as an atomic step from the perspective of barriers and
 				// records/watermarks/timers/callbacks.
+				// TODO_WU 我们通常尝试尽快发出 checkpoint barrier，以不影响下游检查点对齐
 				// We generally try to emit the checkpoint barrier as soon as possible to not affect downstream
 				// checkpoint alignments
 
+				// TODO_WU 向下游发送 Barrier 前，给当前 Task 的每个 operator 进行逻辑处理的机会
 				// Step (1): Prepare the checkpoint, allow operators to do some pre-barrier work.
 				//           The pre-barrier work should be nothing or minimal in the common case.
 				operatorChain.prepareSnapshotPreBarrier(checkpointId);
 
+				// TODO_WU 生成 Barrier 并向下游广播 checkpoint Barrier 消息，下游 Task 收到该消息后就开始进行自己的 checkpoint 流程
 				// Step (2): Send the checkpoint barrier downstream
 				operatorChain.broadcastCheckpointBarrier(
 						checkpointId,
@@ -922,6 +934,9 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 			return true;
 		} else {
 			actionExecutor.runThrowing(() -> {
+				// TODO_WU Task 已经不是 RUNNING 状态了，向下游 Task 广播 CancelCheckpointMarker，下游算子会执行 abort
+				// 然后向 CheckpointCoordinator 发送 declineCheckpoint 消息
+
 				// we cannot perform our checkpoint - let the downstream operators know that they
 				// should not wait for any input from this operator
 
@@ -951,6 +966,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 
 	@Override
 	public Future<Void> notifyCheckpointCompleteAsync(long checkpointId) {
+		// TODO_WU 在MailboxExecutor线程模型中notifyCheckpointComplete获取和执行的优先级是最高的
 		return mailboxProcessor.getMailboxExecutor(TaskMailbox.MAX_PRIORITY).submit(
 				() -> notifyCheckpointComplete(checkpointId),
 				"checkpoint %d complete", checkpointId);
@@ -964,6 +980,9 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 
 					for (StreamOperator<?> operator : operatorChain.getAllOperators()) {
 						if (operator != null) {
+							// TODO_WU Operator checkpoint 成功
+							// 调用AbstractKeyedStateBackend.notifyCheckpointComplete方法
+							// 调用继承CheckpointListener 的 udf（FlinkKafkaConsumerBase）的notifyCheckpointComplete方法
 							operator.notifyCheckpointComplete(checkpointId);
 						}
 					}
@@ -973,7 +992,9 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 					return true;
 				}
 			});
+			// TODO_WU 调用TaskLocalStateStore.confirmCheckpoint -> pruneCheckpoints()清理本地无用的Checkpoint数据
 			getEnvironment().getTaskStateManager().notifyCheckpointComplete(checkpointId);
+			// TODO_WU 如果是同步的Savepoint操作，则直接完成当前Task
 			if (success && isSynchronousSavepointId(checkpointId)) {
 				finishTask();
 				// Reset to "notify" the internal synchronous savepoint mailbox loop.
@@ -1008,6 +1029,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 			CheckpointOptions checkpointOptions,
 			CheckpointMetrics checkpointMetrics) throws Exception {
 
+		// TODO_WU 获取 CheckpointStorage 相关信息
 		CheckpointStreamFactory storage = checkpointStorage.resolveCheckpointStorageLocation(
 				checkpointMetaData.getCheckpointId(),
 				checkpointOptions.getTargetLocation());
@@ -1019,6 +1041,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 			storage,
 			checkpointMetrics);
 
+		// TODO_WU 执行checkpoint
 		checkpointingOperation.executeCheckpointing();
 	}
 
@@ -1158,6 +1181,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 
 		@Override
 		public void run() {
+			// TODO_WU 为当前线程初始化文件系统安全网，确保数据能够正常写入
 			FileSystemSafetyNet.initializeSafetyNetForThread();
 			try {
 
@@ -1167,19 +1191,24 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 				TaskStateSnapshot localTaskOperatorSubtaskStates =
 					new TaskStateSnapshot(operatorSnapshotsInProgress.size());
 
+				// TODO_WU 完成 checkpoint
 				for (Map.Entry<OperatorID, OperatorSnapshotFutures> entry : operatorSnapshotsInProgress.entrySet()) {
 
 					OperatorID operatorID = entry.getKey();
 					OperatorSnapshotFutures snapshotInProgress = entry.getValue();
 
+					// TODO_WU 创建finalizedSnapshots，
+					// 创建的时候会调用FutureUtils.runIfNotDoneAndGet执行快照过程中的异步方法
 					// finalize the async part of all by executing all snapshot runnables
 					OperatorSnapshotFinalizer finalizedSnapshots =
 						new OperatorSnapshotFinalizer(snapshotInProgress);
 
+					// TODO_WU JobMaster 的 State 副本，用于向JobManager汇报的快照状态
 					jobManagerTaskOperatorSubtaskStates.putSubtaskStateByOperatorID(
 						operatorID,
 						finalizedSnapshots.getJobManagerOwnedState());
 
+					// TODO_WU Task 的 State 副本，用于Task本地的故障快速恢复
 					localTaskOperatorSubtaskStates.putSubtaskStateByOperatorID(
 						operatorID,
 						finalizedSnapshots.getTaskLocalState());
@@ -1188,11 +1217,13 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 				final long asyncEndNanos = System.nanoTime();
 				final long asyncDurationMillis = (asyncEndNanos - asyncStartNanos) / 1_000_000L;
 
+				// TODO_WU 为监控系统提供快照操作的耗时
 				checkpointMetrics.setAsyncDurationMillis(asyncDurationMillis);
 
 				if (asyncCheckpointState.compareAndSet(CheckpointingOperation.AsyncCheckpointState.RUNNING,
 					CheckpointingOperation.AsyncCheckpointState.COMPLETED)) {
 
+					// TODO_WU Checkpoint 执行成功 向 JobManager 发送 AcknowledgeCheckpoint 消息
 					reportCompletedSnapshotStates(
 						jobManagerTaskOperatorSubtaskStates,
 						localTaskOperatorSubtaskStates,
@@ -1234,6 +1265,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 			// we signal stateless tasks by reporting null, so that there are no attempts to assign empty state
 			// to stateless tasks on restore. This enables simple job modifications that only concern
 			// stateless without the need to assign them uids to match their (always empty) states.
+			// TODO_WU TaskStateManagerImpl
 			taskStateManager.reportTaskStateSnapshots(
 				checkpointMetaData,
 				checkpointMetrics,
@@ -1385,7 +1417,10 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 			startSyncPartNano = System.nanoTime();
 
 			try {
+				// TODO_WU 调用每一个 StreamOperator 的 snapshotState 方法生成快照并存储到状态后端
 				for (StreamOperator<?> op : allOperators) {
+					// TODO_WU 调用AbstractStreamOperator的snapshotState方法
+					// 将OperatorSnapshotFutures放入operatorSnapshotsInProgress
 					checkpointStreamOperator(op);
 				}
 
@@ -1398,6 +1433,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 
 				checkpointMetrics.setSyncDurationMillis((startAsyncPartNano - startSyncPartNano) / 1_000_000);
 
+				// TODO_WU 执行需要完成snapshot过程的逻辑
 				// we are transferring ownership over snapshotInProgressList for cleanup to the thread, active on submit
 				AsyncCheckpointRunnable asyncCheckpointRunnable = new AsyncCheckpointRunnable(
 					owner,
@@ -1407,6 +1443,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 					startAsyncPartNano);
 
 				owner.cancelables.registerCloseable(asyncCheckpointRunnable);
+				// TODO_WU 在asyncCheckpointRunnable线程中执行operatorSnapshotsInProgress集合中算子的异步快照操作
 				owner.asyncOperationsThreadPool.execute(asyncCheckpointRunnable);
 
 				if (LOG.isDebugEnabled()) {
@@ -1452,11 +1489,13 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 		private void checkpointStreamOperator(StreamOperator<?> op) throws Exception {
 			if (null != op) {
 
+				// TODO_WU AbstractStreamOperator
 				OperatorSnapshotFutures snapshotInProgress = op.snapshotState(
 						checkpointMetaData.getCheckpointId(),
 						checkpointMetaData.getTimestamp(),
 						checkpointOptions,
 						storageLocation);
+				// TODO_WU Map<OperatorID, OperatorSnapshotFutures>
 				operatorSnapshotsInProgress.put(op.getOperatorID(), snapshotInProgress);
 			}
 		}

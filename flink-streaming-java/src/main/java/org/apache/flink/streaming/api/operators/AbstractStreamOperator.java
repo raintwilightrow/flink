@@ -395,6 +395,7 @@ public abstract class AbstractStreamOperator<OUT>
 		KeyGroupRange keyGroupRange = null != keyedStateBackend ?
 				keyedStateBackend.getKeyGroupRange() : KeyGroupRange.EMPTY_KEY_GROUP_RANGE;
 
+		// TODO_WU 创建OperatorSnapshotFutures处理对象 作为返回类
 		OperatorSnapshotFutures snapshotInProgress = new OperatorSnapshotFutures();
 
 		StateSnapshotContextSynchronousImpl snapshotContext = new StateSnapshotContextSynchronousImpl(
@@ -405,6 +406,7 @@ public abstract class AbstractStreamOperator<OUT>
 			getContainingTask().getCancelables());
 
 		try {
+			// TODO_WU udf函数或streamtask具体的snapshot逻辑
 			snapshotState(snapshotContext);
 
 			snapshotInProgress.setKeyedStateRawFuture(snapshotContext.getKeyedStateStreamFuture());

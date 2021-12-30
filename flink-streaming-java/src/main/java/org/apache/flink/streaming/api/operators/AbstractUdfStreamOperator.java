@@ -125,6 +125,7 @@ public abstract class AbstractUdfStreamOperator<OUT, F extends Function>
 
 	@Override
 	public void notifyCheckpointComplete(long checkpointId) throws Exception {
+		// TODO_WU 调用AbstractKeyedStateBackend.notifyCheckpointComplete方法
 		super.notifyCheckpointComplete(checkpointId);
 
 		if (userFunction instanceof CheckpointListener) {

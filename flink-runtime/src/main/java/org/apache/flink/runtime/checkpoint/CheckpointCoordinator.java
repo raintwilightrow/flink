@@ -825,16 +825,20 @@ public class CheckpointCoordinator {
 				return false;
 			}
 
+			// TODO_WU 根据 checkpointID 获取 PendingCheckpoint
 			final PendingCheckpoint checkpoint = pendingCheckpoints.get(checkpointId);
 
 			if (checkpoint != null && !checkpoint.isDiscarded()) {
 
 				switch (checkpoint.acknowledgeTask(message.getTaskExecutionId(), message.getSubtaskState(), message.getCheckpointMetrics())) {
 					case SUCCESS:
+						// TODO_WU 每收到一个成功的 Task ack，就会执行一次判断 areTasksFullyAcknowledged
+						// 如果收到了所有 Task ack, 则把 PendingCheckpoint 变成 CompletedCheckpoint
 						LOG.debug("Received acknowledge message for checkpoint {} from task {} of job {} at {}.",
 							checkpointId, message.getTaskExecutionId(), message.getJob(), taskManagerLocationInfo);
 
 						if (checkpoint.areTasksFullyAcknowledged()) {
+							// TODO_WU 更改 PendingCheckpoint 为 CompletedCheckpoint
 							completePendingCheckpoint(checkpoint);
 						}
 						break;
@@ -843,6 +847,7 @@ public class CheckpointCoordinator {
 							message.getCheckpointId(), message.getTaskExecutionId(), message.getJob(), taskManagerLocationInfo);
 						break;
 					case UNKNOWN:
+						// TODO_WU UNKNOWN|DISCARDED 取消checkpoint
 						LOG.warn("Could not acknowledge the checkpoint {} for task {} of job {} at {}, " +
 								"because the task's execution attempt id was unknown. Discarding " +
 								"the state handle to avoid lingering state.", message.getCheckpointId(),
@@ -903,12 +908,15 @@ public class CheckpointCoordinator {
 		final CompletedCheckpoint completedCheckpoint;
 
 		// As a first step to complete the checkpoint, we register its state with the registry
+		// TODO_WU 注册所有operator的state到sharedStateRegistry
 		Map<OperatorID, OperatorState> operatorStates = pendingCheckpoint.getOperatorStates();
 		sharedStateRegistry.registerAll(operatorStates.values());
 
 		try {
 			try {
+				// TODO_WU 完成 pendingCheckpoint
 				completedCheckpoint = pendingCheckpoint.finalizeCheckpoint();
+				// TODO_WU 重置失败checkpoint的计数
 				failureManager.handleCheckpointSuccess(pendingCheckpoint.getCheckpointId());
 			}
 			catch (Exception e1) {
@@ -921,10 +929,12 @@ public class CheckpointCoordinator {
 					CheckpointFailureReason.FINALIZE_CHECKPOINT_FAILURE, e1);
 			}
 
+			// TODO_WU 执行状态检查
 			// the pending checkpoint must be discarded after the finalization
 			Preconditions.checkState(pendingCheckpoint.isDiscarded() && completedCheckpoint != null);
 
 			try {
+				// TODO_WU 保存 CompletedCheckpoint
 				completedCheckpointStore.addCheckpoint(completedCheckpoint);
 			} catch (Exception exception) {
 				// we failed to store the completed checkpoint. Let's clean up
@@ -932,6 +942,7 @@ public class CheckpointCoordinator {
 					@Override
 					public void run() {
 						try {
+							// TODO_WU 如果保存不成功，则取消
 							completedCheckpoint.discardOnFailedStoring();
 						} catch (Throwable t) {
 							LOG.warn("Could not properly discard completed checkpoint {}.", completedCheckpoint.getCheckpointID(), t);
@@ -943,13 +954,17 @@ public class CheckpointCoordinator {
 					CheckpointFailureReason.FINALIZE_CHECKPOINT_FAILURE, exception);
 			}
 		} finally {
+			// TODO_WU 移除 pendingCheckpoint
 			pendingCheckpoints.remove(checkpointId);
 
+			// TODO_WU 触发下一次
 			triggerQueuedRequests();
 		}
 
+		// TODO_WU 记住 最近一次 CheckpointID
 		rememberRecentCheckpointId(checkpointId);
 
+		// TODO_WU 放弃先启动的，但是未完成的 checkpoint(被处理的checkpoint不能是强制的)
 		// drop those pending checkpoints that are at prior to the completed one
 		dropSubsumedCheckpoints(checkpointId);
 
@@ -973,12 +988,14 @@ public class CheckpointCoordinator {
 			LOG.debug(builder.toString());
 		}
 
+		// TODO_WU 发送 checkpoint 成功的消息给： executionVertex
 		// send the "notify complete" call to all vertices
 		final long timestamp = completedCheckpoint.getTimestamp();
 
 		for (ExecutionVertex ev : tasksToCommitTo) {
 			Execution ee = ev.getCurrentExecutionAttempt();
 			if (ee != null) {
+				// TODO_WU 返回消息
 				ee.notifyCheckpointComplete(checkpointId, timestamp);
 			}
 		}

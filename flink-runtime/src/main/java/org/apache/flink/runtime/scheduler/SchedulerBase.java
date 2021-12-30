@@ -784,6 +784,7 @@ public abstract class SchedulerBase implements SchedulerNG {
 		mainThreadExecutor.assertRunningInMainThread();
 
 		final CheckpointCoordinator checkpointCoordinator = executionGraph.getCheckpointCoordinator();
+		// TODO_WU 将 TaskManager 返回来的各种信息封装成 AcknowledgeCheckpoint
 		final AcknowledgeCheckpoint ackMessage = new AcknowledgeCheckpoint(
 			jobID,
 			executionAttemptID,
@@ -791,11 +792,13 @@ public abstract class SchedulerBase implements SchedulerNG {
 			checkpointMetrics,
 			checkpointState);
 
+		// TODO_WU 获取到 TaskManager 的位置
 		final String taskManagerLocationInfo = retrieveTaskManagerLocation(executionAttemptID);
 
 		if (checkpointCoordinator != null) {
 			ioExecutor.execute(() -> {
 				try {
+					// TODO_WU JobMaster 通知 checkpointCoordinator
 					checkpointCoordinator.receiveAcknowledgeMessage(ackMessage, taskManagerLocationInfo);
 				} catch (Throwable t) {
 					log.warn("Error while processing checkpoint acknowledgement message", t);
@@ -816,11 +819,13 @@ public abstract class SchedulerBase implements SchedulerNG {
 		mainThreadExecutor.assertRunningInMainThread();
 
 		final CheckpointCoordinator checkpointCoordinator = executionGraph.getCheckpointCoordinator();
+		// TODO_WU 拿到发送取消 checkpint 的 TaskManagerLocation 位置信息
 		final String taskManagerLocationInfo = retrieveTaskManagerLocation(decline.getTaskExecutionId());
 
 		if (checkpointCoordinator != null) {
 			ioExecutor.execute(() -> {
 				try {
+					// TODO_WU 取消 checkpoint
 					checkpointCoordinator.receiveDeclineMessage(decline, taskManagerLocationInfo);
 				} catch (Exception e) {
 					log.error("Error in CheckpointCoordinator while processing {}", decline, e);

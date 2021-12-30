@@ -1163,11 +1163,14 @@ public class Task implements Runnable, TaskSlotPayload, TaskActions, PartitionPr
 			final CheckpointOptions checkpointOptions,
 			final boolean advanceToEndOfEventTime) {
 
+		// TODO_WU task 初始化时获得
 		final AbstractInvokable invokable = this.invokable;
 		final CheckpointMetaData checkpointMetaData = new CheckpointMetaData(checkpointID, checkpointTimestamp);
 
+		// TODO_WU 再次校验
 		if (executionState == ExecutionState.RUNNING && invokable != null) {
 			try {
+				// TODO_WU 执行异步 Checkpoint
 				invokable.triggerCheckpointAsync(checkpointMetaData, checkpointOptions, advanceToEndOfEventTime);
 			}
 			catch (RejectedExecutionException ex) {
@@ -1191,6 +1194,7 @@ public class Task implements Runnable, TaskSlotPayload, TaskActions, PartitionPr
 		else {
 			LOG.debug("Declining checkpoint request for non-running task {} ({}).", taskNameWithSubtask, executionId);
 
+			// TODO_WU 如果任务没在运行，则直接回复 DeclineCheckpoint（拒绝Checkpoint）
 			// send back a message that we did not do the checkpoint
 			checkpointResponder.declineCheckpoint(jobId, executionId, checkpointID,
 					new CheckpointException("Task name with subtask : " + taskNameWithSubtask, CheckpointFailureReason.CHECKPOINT_DECLINED_TASK_NOT_READY));

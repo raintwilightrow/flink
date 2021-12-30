@@ -782,6 +782,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 			boolean advanceToEndOfEventTime) {
 		log.debug("Trigger checkpoint {}@{} for {}.", checkpointId, checkpointTimestamp, executionAttemptID);
 
+		// TODO_WU 且只有在同步Savepoints操作时才能调整Watermark为MAX
 		final CheckpointType checkpointType = checkpointOptions.getCheckpointType();
 		if (advanceToEndOfEventTime && !(checkpointType.isSynchronous() && checkpointType.isSavepoint())) {
 			throw new IllegalArgumentException("Only synchronous savepoints are allowed to advance the watermark to MAX.");
@@ -790,6 +791,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 		final Task task = taskSlotTable.getTask(executionAttemptID);
 
 		if (task != null) {
+			// TODO_WU Task 触发 Checkpoint
 			task.triggerCheckpointBarrier(checkpointId, checkpointTimestamp, checkpointOptions, advanceToEndOfEventTime);
 
 			return CompletableFuture.completedFuture(Acknowledge.get());

@@ -229,6 +229,7 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Strea
 	public void broadcastCheckpointBarrier(long id, long timestamp, CheckpointOptions checkpointOptions) throws IOException {
 		CheckpointBarrier barrier = new CheckpointBarrier(id, timestamp, checkpointOptions);
 		for (RecordWriterOutput<?> streamOutput : streamOutputs) {
+			// TODO_WU 给下游所有的 Task 发送 CheckpointBarrier 消息
 			streamOutput.broadcastEvent(barrier);
 		}
 	}

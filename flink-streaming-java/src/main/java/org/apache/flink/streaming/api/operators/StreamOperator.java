@@ -101,6 +101,7 @@ public interface StreamOperator<OUT> extends CheckpointListener, KeyContext, Dis
 	 * opportunistic pre-aggregation operators, which have small the pre-aggregation state that is
 	 * frequently flushed downstream.
 	 *
+	 * TODO_WU 如果在此方法中完成繁重的工作，将影响等待时间和下游检查点对齐 所以此方法不应用于任何实际状态快照逻辑
 	 * <p><b>Important:</b> This method should not be used for any actual state snapshot logic, because
 	 * it will inherently be within the synchronous part of the operator's checkpoint. If heavy work is done
 	 * within this method, it will affect latency and downstream checkpoint alignments.

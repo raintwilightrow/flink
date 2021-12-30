@@ -176,7 +176,9 @@ public class SourceStreamTask<OUT, SRC extends SourceFunction<OUT>, OP extends S
 
 	@Override
 	public Future<Boolean> triggerCheckpointAsync(CheckpointMetaData checkpointMetaData, CheckpointOptions checkpointOptions, boolean advanceToEndOfEventTime) {
+		// TODO_WU externallyInducedCheckpoints true 时source不触发cp
 		if (!externallyInducedCheckpoints) {
+			// TODO_WU 调用父类方法
 			return super.triggerCheckpointAsync(checkpointMetaData, checkpointOptions, advanceToEndOfEventTime);
 		}
 		else {

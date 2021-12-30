@@ -271,6 +271,7 @@ public class PendingCheckpoint {
 				final Savepoint savepoint = new SavepointV2(checkpointId, operatorStates.values(), masterStates);
 				final CompletedCheckpointStorageLocation finalizedLocation;
 
+				// TODO_WU 存储元数据信息到文件系统
 				try (CheckpointMetadataOutputStream out = targetLocation.createMetadataOutputStream()) {
 					Checkpoints.storeCheckpointMetadata(savepoint, out);
 					finalizedLocation = out.closeAndFinalizeCheckpoint();
@@ -286,9 +287,11 @@ public class PendingCheckpoint {
 						props,
 						finalizedLocation);
 
+				// TODO_WU completableFuture任务完成，返回completedCheckpoint
 				onCompletionPromise.complete(completed);
 
 				// to prevent null-pointers from concurrent modification, copy reference onto stack
+				// TODO_WU 进行回调，通知各个 Task
 				PendingCheckpointStats statsCallback = this.statsCallback;
 				if (statsCallback != null) {
 					// Finalize the statsCallback and give the completed checkpoint a
@@ -298,6 +301,7 @@ public class PendingCheckpoint {
 					completed.setDiscardCallback(discardCallback);
 				}
 
+				// TODO_WU 将此待处理检查点标记为已处置，但不要删除状态
 				// mark this pending checkpoint as disposed, but do NOT drop the state
 				dispose(false);
 
@@ -329,6 +333,7 @@ public class PendingCheckpoint {
 				return TaskAcknowledgeResult.DISCARDED;
 			}
 
+			// TODO_WU 收到一个 ExecutionVertex的反馈，则从未 ack的 Execution 集合 notYetAcknowledgedTasks 中移除
 			final ExecutionVertex vertex = notYetAcknowledgedTasks.remove(executionAttemptId);
 
 			if (vertex == null) {
@@ -338,6 +343,7 @@ public class PendingCheckpoint {
 					return TaskAcknowledgeResult.UNKNOWN;
 				}
 			} else {
+				// TODO_WU 将 ack 的 ExecutionVertex 加入到 acknowledgedTasks 集合中
 				acknowledgedTasks.add(executionAttemptId);
 			}
 
@@ -347,7 +353,9 @@ public class PendingCheckpoint {
 
 			long stateSize = 0L;
 
+			// TODO_WU 保存各个operator的snapshot状态
 			if (operatorSubtaskStates != null) {
+				// TODO_WU 对每个 Operator 的 State 进行操作
 				for (OperatorID operatorID : operatorIDs) {
 
 					OperatorSubtaskState operatorSubtaskState =
@@ -373,6 +381,7 @@ public class PendingCheckpoint {
 				}
 			}
 
+			// TODO_WU 已反馈的 ack + 1
 			++numAcknowledgedTasks;
 
 			// publish the checkpoint statistics
@@ -394,6 +403,7 @@ public class PendingCheckpoint {
 				statsCallback.reportSubtaskStats(vertex.getJobvertexId(), subtaskStateStats);
 			}
 
+			// TODO_WU ack 成功
 			return TaskAcknowledgeResult.SUCCESS;
 		}
 	}

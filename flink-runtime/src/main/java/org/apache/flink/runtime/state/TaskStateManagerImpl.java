@@ -93,6 +93,7 @@ public class TaskStateManagerImpl implements TaskStateManager {
 
 		localStateStore.storeLocalState(checkpointId, localState);
 
+		// TODO_WU 发回某个 Task 的 checkpoint ack 反馈
 		checkpointResponder.acknowledgeCheckpoint(
 			jobId,
 			executionAttemptID,
