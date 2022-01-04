@@ -39,6 +39,8 @@ import static org.apache.flink.util.Preconditions.checkState;
 @Internal
 public class InputProcessorUtil {
 
+	// TODO_WU 1.11 统一 createCheckpointedInputGate 和 createCheckpointedInputGatePair
+	// 并且不在cpInputGate内部维持bufferStorage
 	public static CheckpointedInputGate createCheckpointedInputGate(
 			AbstractInvokable toNotifyOnCheckpoint,
 			CheckpointingMode checkpointMode,
@@ -51,6 +53,7 @@ public class InputProcessorUtil {
 
 		BufferStorage bufferStorage = createBufferStorage(
 			checkpointMode, ioManager, pageSize, taskManagerConfig, taskName);
+		// TODO_WU EXACTLY_ONCE -> CheckpointBarrierAligner || AT_LEAST_ONCE -> CheckpointBarrierTracker
 		CheckpointBarrierHandler barrierHandler = createCheckpointBarrierHandler(
 			checkpointMode, inputGate.getNumberOfInputChannels(), taskName, toNotifyOnCheckpoint);
 		return new CheckpointedInputGate(inputGate, bufferStorage, barrierHandler);
@@ -72,6 +75,7 @@ public class InputProcessorUtil {
 
 		int pageSize = ConfigurationParserUtils.getPageSize(taskManagerConfig);
 
+		// TODO_WU 将两个BufferStorage串联起来，buffer单独保存，但是rolled over保持一致 1.11取消
 		BufferStorage mainBufferStorage1 = createBufferStorage(
 			checkpointMode, ioManager, pageSize, taskManagerConfig, taskName);
 		BufferStorage mainBufferStorage2 = createBufferStorage(
@@ -96,6 +100,7 @@ public class InputProcessorUtil {
 
 		return new CheckpointedInputGate[] {
 			new CheckpointedInputGate(inputGate1, linkedBufferStorage1, barrierHandler),
+			// TODO_WU channelIndexOffset 在多个cpInputGate内维持barrier 1.11取消
 			new CheckpointedInputGate(inputGate2, linkedBufferStorage2, barrierHandler, inputGate1.getNumberOfInputChannels())
 		};
 	}
@@ -106,11 +111,13 @@ public class InputProcessorUtil {
 			String taskName,
 			AbstractInvokable toNotifyOnCheckpoint) {
 		switch (checkpointMode) {
+			// TODO_WU 对所有InputChannel中的CheckpointBarrier进行严格的对齐控制
 			case EXACTLY_ONCE:
 				return new CheckpointBarrierAligner(
 					numberOfInputChannels,
 					taskName,
 					toNotifyOnCheckpoint);
+			// TODO_WU 没有对CheckpointBarrier进行非常严格的控制
 			case AT_LEAST_ONCE:
 				return new CheckpointBarrierTracker(numberOfInputChannels, toNotifyOnCheckpoint);
 			default:
@@ -126,6 +133,7 @@ public class InputProcessorUtil {
 			String taskName) {
 		switch (checkpointMode) {
 			case EXACTLY_ONCE: {
+				// TODO_WU 1.11取消该参数
 				long maxAlign = taskManagerConfig.getLong(TaskManagerOptions.TASK_CHECKPOINT_ALIGNMENT_BYTES_LIMIT);
 				if (!(maxAlign == -1 || maxAlign > 0)) {
 					throw new IllegalConfigurationException(

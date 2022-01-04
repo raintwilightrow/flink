@@ -172,6 +172,7 @@ public abstract class RecordWriter<T extends IOReadableWritable> implements Avai
 
 	public void broadcastEvent(AbstractEvent event) throws IOException {
 		try (BufferConsumer eventBufferConsumer = EventSerializer.toBufferConsumer(event)) {
+			// TODO_WU 遍历每个 InputChannel
 			for (int targetChannel = 0; targetChannel < numberOfChannels; targetChannel++) {
 				tryFinishCurrentBufferBuilder(targetChannel);
 
@@ -179,6 +180,7 @@ public abstract class RecordWriter<T extends IOReadableWritable> implements Avai
 				targetPartition.addBufferConsumer(eventBufferConsumer.copy(), targetChannel);
 			}
 
+			// TODO_WU 让 ResultPartition 的所有 ResultSubPartition 都执行 flush 动作
 			if (flushAlways) {
 				flushAll();
 			}

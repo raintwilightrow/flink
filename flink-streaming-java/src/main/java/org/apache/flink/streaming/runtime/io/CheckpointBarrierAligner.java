@@ -106,6 +106,7 @@ public class CheckpointBarrierAligner extends CheckpointBarrierHandler {
 		final long barrierId = receivedBarrier.getId();
 
 		// fast path for single channel cases
+		// TODO_WU 如果只有一个 Input Channel，收到 Barrier 后直接调用 notifyCheckpoint 触发快照
 		if (totalNumberOfInputChannels == 1) {
 			if (barrierId > currentCheckpointId) {
 				// new checkpoint
@@ -117,15 +118,20 @@ public class CheckpointBarrierAligner extends CheckpointBarrierHandler {
 
 		boolean checkpointAborted = false;
 
+		// TODO_WU 如果包含多个 Input Channel， 先执行 Barrier 对齐
 		// -- general code path for multiple input channels --
 
+		// TODO_WU 已经开始接收CheckpointBarrier事件
 		if (numBarriersReceived > 0) {
 			// this is only true if some alignment is already progress and was not canceled
 
+			// TODO_WU barrier id相等 说明同一次checkpoint的barrier从另一个数据流到来
 			if (barrierId == currentCheckpointId) {
 				// regular case
+				// TODO_WU 阻塞当前channel ，numBarriersReceived ++
 				onBarrier(channelIndex);
 			}
+			// TODO_WU 如果 barrierId > currentCheckpointId, 有新的Barrier事件发出，终止当前checkpoint
 			else if (barrierId > currentCheckpointId) {
 				// we did not complete the current checkpoint, another started before
 				LOG.warn("{}: Received checkpoint barrier for checkpoint {} before completing current checkpoint {}. " +
@@ -134,6 +140,7 @@ public class CheckpointBarrierAligner extends CheckpointBarrierHandler {
 					barrierId,
 					currentCheckpointId);
 
+				// TODO_WU 通知Task当前Checkpoint没有完成
 				// let the task know we are not completing this
 				notifyAbort(currentCheckpointId,
 					new CheckpointException(
@@ -144,14 +151,17 @@ public class CheckpointBarrierAligner extends CheckpointBarrierHandler {
 				releaseBlocksAndResetBarriers();
 				checkpointAborted = true;
 
+				// TODO_WU 开启新的Checkpoint
 				// begin a the new checkpoint
 				beginNewAlignment(barrierId, channelIndex);
 			}
 			else {
+				// TODO_WU 忽略先前检查点的barrier（现已过时）
 				// ignore trailing barrier from an earlier checkpoint (obsolete now)
 				return false;
 			}
 		}
+		// TODO_WU 开始新对齐
 		else if (barrierId > currentCheckpointId) {
 			// first barrier of a new checkpoint
 			beginNewAlignment(barrierId, channelIndex);
@@ -162,6 +172,7 @@ public class CheckpointBarrierAligner extends CheckpointBarrierHandler {
 			return false;
 		}
 
+		// TODO_WU 收到所有 inputchannel 的 barrier，触发 checkpoint ，并移除 channel 的阻塞标记
 		// check if we have all barriers - since canceled checkpoints always have zero barriers
 		// this can only happen on a non canceled checkpoint
 		if (numBarriersReceived + numClosedChannels == totalNumberOfInputChannels) {

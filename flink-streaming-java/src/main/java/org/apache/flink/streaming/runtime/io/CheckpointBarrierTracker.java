@@ -110,6 +110,7 @@ public class CheckpointBarrierTracker extends CheckpointBarrierHandler {
 		int pos = 0;
 
 		for (CheckpointBarrierCount next : pendingCheckpoints) {
+			// TODO_WU 找到了id相同的CheckpointBarrierCount
 			if (next.checkpointId == barrierId) {
 				barrierCount = next;
 				break;
@@ -120,6 +121,7 @@ public class CheckpointBarrierTracker extends CheckpointBarrierHandler {
 		if (barrierCount != null) {
 			// add one to the count to that barrier and check for completion
 			int numBarriersNew = barrierCount.incrementBarrierCount();
+			// TODO_WU 如果barrier数量和输入channel数量相等，说明已接收到所有input channel的barrier
 			if (numBarriersNew == totalNumberOfInputChannels) {
 				// checkpoint can be triggered (or is aborted and all barriers have been seen)
 				// first, remove this checkpoint and all all prior pending
@@ -129,6 +131,7 @@ public class CheckpointBarrierTracker extends CheckpointBarrierHandler {
 				}
 
 				// notify the listener
+				// TODO_WU 如果checkpoint没有终止，通知进行checkpoint操作
 				if (!barrierCount.isAborted()) {
 					if (LOG.isDebugEnabled()) {
 						LOG.debug("Received all barriers for checkpoint {}", barrierId);
@@ -138,16 +141,20 @@ public class CheckpointBarrierTracker extends CheckpointBarrierHandler {
 				}
 			}
 		}
+		// TODO_WU 这次到来的barrier没有对应的checkpoint
 		else {
+			// TODO_WU 并且barrier是新的
 			// first barrier for that checkpoint ID
 			// add it only if it is newer than the latest checkpoint.
 			// if it is not newer than the latest checkpoint ID, then there cannot be a
 			// successful checkpoint for that ID anyways
 			if (barrierId > latestPendingCheckpointID) {
 				latestPendingCheckpointID = barrierId;
+				// TODO_WU 增加当前的checkpoint到pendingCheckpoints
 				pendingCheckpoints.addLast(new CheckpointBarrierCount(barrierId));
 
 				// make sure we do not track too many checkpoints
+				// TODO_WU 大于MAX_CHECKPOINTS_TO_TRACK，删除最早未保存的checkpoint
 				if (pendingCheckpoints.size() > MAX_CHECKPOINTS_TO_TRACK) {
 					pendingCheckpoints.pollFirst();
 				}

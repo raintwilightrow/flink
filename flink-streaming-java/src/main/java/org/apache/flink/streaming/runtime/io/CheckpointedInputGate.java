@@ -121,6 +121,8 @@ public class CheckpointedInputGate implements PullingAsyncDataInput<BufferOrEven
 		while (true) {
 			// process buffered BufferOrEvents before grabbing new ones
 			Optional<BufferOrEvent> next;
+			// TODO_WU 从缓冲区或者 InputGate 中拉取数据
+			// TODO_WU 只有当bufferStorage为空的时候才从inputGate读取数据
 			if (bufferStorage.isEmpty()) {
 				next = inputGate.pollNext();
 			}
@@ -133,10 +135,12 @@ public class CheckpointedInputGate implements PullingAsyncDataInput<BufferOrEven
 			}
 
 			if (!next.isPresent()) {
+				// TODO_WU 如果当前缓冲区为空，则从 InputGate 获取数据
 				return handleEmptyBuffer();
 			}
 
 			BufferOrEvent bufferOrEvent = next.get();
+			// TODO_WU 如果一个 channel 阻塞了，说明还有其他 channel barrier 没有到来，把数据保存在 bufferStorage
 			if (barrierHandler.isBlocked(offsetChannelIndex(bufferOrEvent.getChannelIndex()))) {
 				// if the channel is blocked, we just store the BufferOrEvent
 				bufferStorage.add(bufferOrEvent);
@@ -145,23 +149,28 @@ public class CheckpointedInputGate implements PullingAsyncDataInput<BufferOrEven
 					bufferStorage.rollOver();
 				}
 			}
+			// TODO_WU 如果是 Buffer，直接返回，交给 operator 处理
 			else if (bufferOrEvent.isBuffer()) {
 				return next;
 			}
+			// TODO_WU CheckpointBarrier 交给 barrierHandler 处理
 			else if (bufferOrEvent.getEvent().getClass() == CheckpointBarrier.class) {
 				CheckpointBarrier checkpointBarrier = (CheckpointBarrier) bufferOrEvent.getEvent();
 				if (!endOfInputGate) {
 					// process barriers only if there is a chance of the checkpoint completing
+					// TODO_WU EXACTLY_ONCE -> CheckpointBarrierAligner || AT_LEAST_ONCE -> CheckpointBarrierTracker
 					if (barrierHandler.processBarrier(checkpointBarrier, offsetChannelIndex(bufferOrEvent.getChannelIndex()), bufferStorage.getPendingBytes())) {
 						bufferStorage.rollOver();
 					}
 				}
 			}
+			// TODO_WU 处理 CancellationBarrier 取消本次Checkpoint操作
 			else if (bufferOrEvent.getEvent().getClass() == CancelCheckpointMarker.class) {
 				if (barrierHandler.processCancellationBarrier((CancelCheckpointMarker) bufferOrEvent.getEvent())) {
 					bufferStorage.rollOver();
 				}
 			}
+			// TODO_WU 处理 EndOfPartitionEvent 上游Partition中的数据已经消费完毕
 			else {
 				if (bufferOrEvent.getEvent().getClass() == EndOfPartitionEvent.class) {
 					if (barrierHandler.processEndOfPartition()) {
