@@ -150,6 +150,7 @@ public class StreamingJobGraphGenerator {
 	}
 
 	private JobGraph createJobGraph() {
+		// TODO_WU 每个节点的Operator是否实现InputSelectable接口
 		preValidate();
 
 		// make sure that all vertices start immediately

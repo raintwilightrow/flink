@@ -333,7 +333,7 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
 		// TODO_WU 异步提交执行
 		final CompletableFuture<Acknowledge> persistAndRunFuture = waitForTerminatingJobManager(
 			jobGraph.getJobID(), jobGraph,
-			// TODO_WU 执行任务
+			// TODO_WU 持久化并执行
 			this::persistAndRunJob)
 			.thenApply(ignored -> Acknowledge.get());
 

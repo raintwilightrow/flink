@@ -58,6 +58,7 @@ public class AbstractSessionClusterExecutor<ClusterID, ClientFactory extends Clu
 		final JobGraph jobGraph = ExecutorUtils.getJobGraph(pipeline, configuration);
 
 		try (final ClusterDescriptor<ClusterID> clusterDescriptor = clusterClientFactory.createClusterDescriptor(configuration)) {
+			// TODO_WU // 获取远程集群ID
 			final ClusterID clusterID = clusterClientFactory.getClusterId(configuration);
 			checkState(clusterID != null);
 

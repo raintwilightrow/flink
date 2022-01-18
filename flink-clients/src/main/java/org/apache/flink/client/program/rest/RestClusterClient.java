@@ -289,7 +289,7 @@ public class RestClusterClient<T> implements ClusterClient<T> {
 	public CompletableFuture<JobID> submitJob(@Nonnull JobGraph jobGraph) {
 		CompletableFuture<java.nio.file.Path> jobGraphFileFuture = CompletableFuture.supplyAsync(() -> {
 			try {
-				// TODO_WU 持久化 JobGragh 的前缀：flink-jobgraph /后缀：.bin
+				// TODO_WU 在系统临时文件目录创建一个空的临时文件用来持久化 JobGragh ，前缀：flink-jobgraph /后缀：.bin
 				final java.nio.file.Path jobGraphFile = Files.createTempFile("flink-jobgraph", ".bin");
 				try (ObjectOutputStream objectOut = new ObjectOutputStream(Files.newOutputStream(jobGraphFile))) {
 					objectOut.writeObject(jobGraph);

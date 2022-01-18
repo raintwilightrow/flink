@@ -175,10 +175,10 @@ public class CliFrontend {
 		LOG.info("Running 'run' command.");
 
 		final Options commandOptions = CliFrontendParser.getRunCommandOptions();
-		// TODO_WU 解析好的对应的参数
+		// TODO_WU 解析参数
 		final CommandLine commandLine = getCommandLine(commandOptions, args, true);
 
-		// TODO_WU 判断是否为帮助命令
+		// TODO_WU 判断是否为 '-h' 帮助命令
 		// evaluate help flag
 		if (commandLine.hasOption(HELP_OPTION.getOpt())) {
 			CliFrontendParser.printHelpForRun(customCommandLines);
@@ -197,7 +197,7 @@ public class CliFrontend {
 			}
 		}
 
-		// TODO_WU 构建 PackagedProgram
+		// TODO_WU 将用户提交的jar包封装为PackagedProgram
 		final PackagedProgram program;
 		try {
 			LOG.info("Building program from JAR file");
@@ -978,15 +978,15 @@ public class CliFrontend {
 			configurationDirectory);
 
 		try {
-			// TODO_WU 初始化 CliFrontend
+			// TODO_WU 4. 初始化 CliFrontend
 			final CliFrontend cli = new CliFrontend(
 				configuration,
 				customCommandLines);
 
-			// TODO_WU 进行Kerberos认证
+			// TODO_WU 5. 进行Kerberos认证
 			SecurityUtils.install(new SecurityConfiguration(cli.configuration));
 			int retCode = SecurityUtils.getInstalledContext()
-				// TODO_WU 解析命令行并并开始请求操作
+				// TODO_WU 6. 解析命令行并并开始请求操作
 					.runSecured(() -> cli.parseParameters(args));
 			System.exit(retCode);
 		}

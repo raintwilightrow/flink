@@ -1638,17 +1638,20 @@ public class StreamExecutionEnvironment {
 	 */
 	@Internal
 	public JobExecutionResult execute(StreamGraph streamGraph) throws Exception {
+		// TODO_WU 异步执行StreamGragh
 		final JobClient jobClient = executeAsync(streamGraph);
 
 		try {
 			final JobExecutionResult jobExecutionResult;
 
+			// TODO_WU 使用attached模式执行作业由于需要保持client端不关闭，所以这里同步等待作业执行结果
 			if (configuration.getBoolean(DeploymentOptions.ATTACHED)) {
 				jobExecutionResult = jobClient.getJobExecutionResult(userClassloader).get();
 			} else {
 				jobExecutionResult = new DetachedJobExecutionResult(jobClient.getJobID());
 			}
 
+			// TODO_WU 获取作业执行结果
 			jobListeners.forEach(jobListener -> jobListener.onJobExecuted(jobExecutionResult, null));
 
 			return jobExecutionResult;
@@ -1746,6 +1749,7 @@ public class StreamExecutionEnvironment {
 			.execute(streamGraph, configuration);
 
 		try {
+			// TODO_WU 通知各个作业监听器作业已提交
 			JobClient jobClient = jobClientFuture.get();
 			jobListeners.forEach(jobListener -> jobListener.onJobSubmitted(jobClient, null));
 			return jobClient;

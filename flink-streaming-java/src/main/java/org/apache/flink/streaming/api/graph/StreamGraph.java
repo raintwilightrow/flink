@@ -251,7 +251,9 @@ public class StreamGraph implements Pipeline {
 		TypeInformation<IN> inTypeInfo,
 		TypeInformation<OUT> outTypeInfo,
 		String operatorName) {
+		// TODO_WU 添加 StreamNode
 		addOperator(vertexID, slotSharingGroup, coLocationGroup, operatorFactory, inTypeInfo, outTypeInfo, operatorName);
+		// TODO_WU 加入 Source 集合
 		sources.add(vertexID);
 	}
 
@@ -275,12 +277,14 @@ public class StreamGraph implements Pipeline {
 			TypeInformation<OUT> outTypeInfo,
 			String operatorName) {
 
+		// TODO_WU 根据类实现，添加不同的 vertexClass
 		if (operatorFactory.isStreamSource()) {
 			addNode(vertexID, slotSharingGroup, coLocationGroup, SourceStreamTask.class, operatorFactory, operatorName);
 		} else {
 			addNode(vertexID, slotSharingGroup, coLocationGroup, OneInputStreamTask.class, operatorFactory, operatorName);
 		}
 
+		// TODO_WU 创建 输入和输出 序列化器
 		TypeSerializer<IN> inSerializer = inTypeInfo != null && !(inTypeInfo instanceof MissingTypeInfo) ? inTypeInfo.createSerializer(executionConfig) : null;
 
 		TypeSerializer<OUT> outSerializer = outTypeInfo != null && !(outTypeInfo instanceof MissingTypeInfo) ? outTypeInfo.createSerializer(executionConfig) : null;
@@ -341,6 +345,7 @@ public class StreamGraph implements Pipeline {
 			throw new RuntimeException("Duplicate vertexID " + vertexID);
 		}
 
+		// TODO_WU 生成一个 StreamNode
 		StreamNode vertex = new StreamNode(
 			vertexID,
 			slotSharingGroup,
@@ -350,6 +355,7 @@ public class StreamGraph implements Pipeline {
 			new ArrayList<OutputSelector<?>>(),
 			vertexClass);
 
+		// TODO_WU 添加一个 StreamNode
 		streamNodes.put(vertexID, vertex);
 
 		return vertex;

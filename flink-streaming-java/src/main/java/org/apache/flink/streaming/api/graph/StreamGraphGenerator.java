@@ -276,6 +276,7 @@ public class StreamGraphGenerator {
 			throw new IllegalStateException("Unknown transformation: " + transform);
 		}
 
+		// TODO_WU 处理每个transformation的时候会先处理它的input
 		// need this check because the iterate transformation adds itself before
 		// transforming the feedback edges
 		if (!alreadyTransformed.containsKey(transform)) {
@@ -587,8 +588,10 @@ public class StreamGraphGenerator {
 	 * Transforms a {@code SourceTransformation}.
 	 */
 	private <T> Collection<Integer> transformSource(SourceTransformation<T> source) {
+		// TODO_WU 返回slotSharingGroup 此处返回“default”
 		String slotSharingGroup = determineSlotSharingGroup(source.getSlotSharingGroup(), Collections.emptyList());
 
+		// TODO_WU 添加 SourceTransformation 对应的 StreamNode
 		streamGraph.addSource(source.getId(),
 				slotSharingGroup,
 				source.getCoLocationGroupKey(),
@@ -596,14 +599,17 @@ public class StreamGraphGenerator {
 				null,
 				source.getOutputType(),
 				"Source: " + source.getName());
+		// TODO_WU 设置输入数据类型
 		if (source.getOperatorFactory() instanceof InputFormatOperatorFactory) {
 			streamGraph.setInputFormat(source.getId(),
 					((InputFormatOperatorFactory<T>) source.getOperatorFactory()).getInputFormat());
 		}
+		// TODO_WU 设置并行度
 		int parallelism = source.getParallelism() != ExecutionConfig.PARALLELISM_DEFAULT ?
 			source.getParallelism() : executionConfig.getParallelism();
 		streamGraph.setParallelism(source.getId(), parallelism);
 		streamGraph.setMaxParallelism(source.getId(), source.getMaxParallelism());
+		// TODO_WU 返回 VertexID = StreamNodeID
 		return Collections.singleton(source.getId());
 	}
 
